@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Sign In{% endblock %}
+{% block body_class %}page-login no-sidebar{% endblock %}
+
+{% block head %}
+<style>
+    .scroll-progress-bar {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+    }
+</style>
+{% endblock %}
+
+{% block layout %}
+<!-- Login page — NO sidebar, centered dark glass modal -->
+<div class="login-container" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px;">
+    <div class="login-card glass-card" style="width: 100%; max-width: 440px; padding: 36px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
+        <div class="login-header" style="text-align: center; margin-bottom: 28px;">
+            <div class="login-logo" style="width: 54px; height: 54px; border-radius: 16px; background: rgba(62, 207, 142, 0.15); border: 1px solid rgba(62, 207, 142, 0.3); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+            </div>
+            <h2 style="font-size: 26px; margin: 0; color: #FFF;">LeadFlow <span class="accent">AI</span></h2>
+            <p class="login-subtitle text-muted" style="font-size: 14px; margin-top: 4px;">Enterprise Contact Intelligence Portal</p>
+        </div>
+
+        <!-- AUTH MODE TABS -->
+        <div style="display: flex; gap: 8px; background: rgba(255,255,255,0.03); padding: 4px; border-radius: 12px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.06);">
+            <button type="button" class="btn tab-btn active" id="tab-signin" onclick="setAuthTab('signin')" style="flex: 1; padding: 8px; font-size: 13px;">Sign In</button>
+            <button type="button" class="btn tab-btn" id="tab-register" onclick="setAuthTab('register')" style="flex: 1; padding: 8px; font-size: 13px;">Create Account</button>
+        </div>
+
+        <!-- 1. SIGN IN FORM -->
+        <form id="form-signin" onsubmit="handleRealLogin(event)">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label text-muted" style="font-size: 12px; font-weight: 600; margin-bottom: 6px; display: block;">Email Address</label>
+                <input type="email" id="login-email" class="form-control" placeholder="alex.mercer@nexustech.io" required style="width: 100%; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: #FFF;">
+            </div>
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="form-label text-muted" style="font-size: 12px; font-weight: 600; margin-bottom: 6px; display: block;">Password</label>
+                <input type="password" id="login-password" class="form-control" placeholder="••••••••" required style="width: 100%; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: #FFF;">
+            </div>
+            <button type="submit" class="btn btn-primary w-full" style="width: 100%; padding: 14px; border-radius: 12px; font-weight: 700;">Sign In to Workspace ➔</button>
+        </form>
+
+        <!-- 2. REGISTER FORM -->
+        <form id="form-register" onsubmit="handleRealRegister(event)" style="display: none;">
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label text-muted" style="font-size: 12px; font-weight: 600; margin-bottom: 4px; display: block;">Full Name</label>
+                <input type="text" id="reg-name" class="form-control" placeholder="Sarah Connor" required style="width: 100%; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: #FFF;">
+            </div>
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label text-muted" style="font-size: 12px; font-weight: 600; margin-bottom: 4px; display: block;">Email Address</label>
+                <input type="email" id="reg-email" class="form-control" placeholder="sarah@enterprise.com" required style="width: 100%; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: #FFF;">
+            </div>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="form-label text-muted" style="font-size: 12px; font-weight: 600; margin-bottom: 4px; display: block;">Password</label>
+                <input type="password" id="reg-password" class="form-control" placeholder="••••••••" required style="width: 100%; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: #FFF;">
+            </div>
+            <button type="submit" class="btn btn-primary w-full" style="width: 100%; padding: 14px; border-radius: 12px; font-weight: 700;">Create Enterprise Account ➔</button>
+        </form>
+
+        <!-- DEMO QUICK SELECT PERSONAS -->
+        <div style="margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px;">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.4); text-align: center; margin-bottom: 14px; font-weight: 700;">Or Quick Select Demo Enterprise Account</div>
+            
+            <div class="login-profiles" style="display: flex; flex-direction: column; gap: 8px;">
+                {% for key, profile in profiles.items() %}
+                {% if key != 'guest' %}
+                <button class="profile-row" onclick="loginAs('{{ key }}')" id="login-{{ key }}" type="button" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; width: 100%; cursor: pointer; text-align: left; transition: all 0.2s ease;">
+                    <div class="profile-avatar" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #000; background: {{ profile.color }}">
+                        {{ profile.avatar }}
+                    </div>
+                    <div class="profile-info" style="flex: 1; overflow: hidden;">
+                        <span class="profile-name" style="font-size: 13px; font-weight: 700; color: #FFF; display: block;">{{ profile.name }}</span>
+                        <span class="profile-email text-muted" style="font-size: 11px;">{{ profile.email }}</span>
+                    </div>
+                    <span style="font-size: 12px; color: #3ECF8E;">Login ➔</span>
+                </button>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 18px; text-align: center;">
+            <button class="btn btn-secondary w-full" onclick="loginAs('guest')" id="btn-guest-login" type="button" style="width: 100%; padding: 12px; border-radius: 12px; font-size: 13px; color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08);">
+                ⚡ Enter as Guest (Sandbox Mode)
+            </button>
+            <p style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 8px;">
+                🔒 Guest Sandbox Mode: Stored database cards are hidden & private.
+            </p>
+        </div>
+
+        <div style="text-align: center; margin-top: 16px;">
+            <a href="{{ url_for('landing') }}" class="login-back text-muted" style="font-size: 13px;">← Back to Start</a>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setAuthTab(tab) {
+    const tabSignin = document.getElementById('tab-signin');
+    const tabRegister = document.getElementById('tab-register');
+    const formSignin = document.getElementById('form-signin');
+    const formRegister = document.getElementById('form-register');
+
+    if (tab === 'signin') {
+        tabSignin.classList.add('active');
+        tabRegister.classList.remove('active');
+        formSignin.style.display = 'block';
+        formRegister.style.display = 'none';
+    } else {
+        tabRegister.classList.add('active');
+        tabSignin.classList.remove('active');
+        formRegister.style.display = 'block';
+        formSignin.style.display = 'none';
+    }
+}
+
+async function handleRealLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+
+    try {
+        const res = await apiCall('/api/login_credentials', 'POST', { email, password });
+        if (res.success) {
+            showNotification('Welcome Back!', `Signed in as ${res.user.name}`, 'success');
+            setTimeout(() => window.location.href = '/home', 800);
+        } else {
+            showNotification('Login Failed', res.error || 'Invalid email or password', 'error');
+        }
+    } catch (err) {
+        showNotification('Login Error', err.message, 'error');
+    }
+}
+
+async function handleRealRegister(e) {
+    e.preventDefault();
+    const name = document.getElementById('reg-name').value;
+    const email = document.getElementById('reg-email').value;
+    const password = document.getElementById('reg-password').value;
+
+    try {
+        const res = await apiCall('/api/register', 'POST', { name, email, password });
+        if (res.success) {
+            showNotification('Account Created!', `Welcome ${res.user.name}`, 'success');
+            setTimeout(() => window.location.href = '/home', 800);
+        } else {
+            showNotification('Registration Failed', res.error || 'Could not create account', 'error');
+        }
+    } catch (err) {
+        showNotification('Error', err.message, 'error');
+    }
+}
+</script>
+{% endblock %}

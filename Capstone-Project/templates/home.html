@@ -1,0 +1,544 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block body_class %}page-home{% endblock %}
+
+{% block content %}
+<!-- TOP BAR -->
+<div class="topbar" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+    <div class="topbar-left" style="display: flex; flex-direction: column; gap: 4px;">
+        <h1 class="page-title" style="margin: 0; font-size: 26px;">{{ greeting }}, <span class="accent">{{ user.name.split(' ')[0] }}</span></h1>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.05em;">Active Space:</span>
+            <span class="mono" style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(62,207,142,0.15); color: #3ECF8E; border: 1px solid rgba(62,207,142,0.35); display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                <span id="active-project-name-badge">{{ active_project|replace('_', ' ')|title }}</span>
+            </span>
+        </div>
+    </div>
+    
+    <div class="topbar-right" style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <div class="topbar-chips" style="display: flex; align-items: center; gap: 8px;">
+            <span class="chip" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;"><span class="chip-dot dot-emerald"></span> <span id="stat-contacts-count">{{ total_contacts }}</span> Contacts</span>
+            <span class="chip" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;"><span class="chip-dot dot-blue"></span> {{ total_companies }} Companies</span>
+            <span class="chip" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;"><span class="chip-dot dot-amber"></span> {{ synced_count }} Synced</span>
+        </div>
+        
+        <div class="topbar-actions" style="display: flex; align-items: center; gap: 8px;">
+            <button class="btn btn-secondary" onclick="openNewProjectModal()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; white-space: nowrap; padding: 9px 15px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>New Project</span>
+            </button>
+            <a href="{{ url_for('scan') }}" class="btn btn-primary" id="home-scan-cta" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; white-space: nowrap; padding: 9px 18px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+                <span>Scan Card</span>
+            </a>
+            <a href="{{ url_for('ledger') }}" class="btn btn-secondary" id="home-ledger-cta" style="white-space: nowrap; padding: 9px 15px;">Ledger</a>
+        </div>
+    </div>
+</div>
+
+<!-- PROJECT WORKSPACES BENTO CAROUSEL -->
+<div class="glass-card" style="padding: 20px; border-radius: 18px; margin-bottom: 24px; background: rgba(11, 16, 25, 0.85); border: 1px solid rgba(255,255,255,0.08);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            <span style="font-size: 14px; font-weight: 800; color: #FFF; letter-spacing: 0.02em;">Project Database Spaces</span>
+            <span style="font-size: 11px; padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6);" class="mono">{{ projects|length }} Spaces</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="openNewProjectModal()" style="font-size: 11px; padding: 6px 12px;">
+            <span>+ Create Database Space</span>
+        </button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;" id="project-spaces-grid">
+        {% for p in projects %}
+        <div class="project-space-card {% if p.slug == active_project %}active-space{% endif %}" 
+             onclick="switchProject('{{ p.slug }}')"
+             style="cursor: pointer; padding: 14px; border-radius: 12px; background: {% if p.slug == active_project %}rgba(62, 207, 142, 0.12){% else %}rgba(255,255,255,0.02){% endif %}; border: 1px solid {% if p.slug == active_project %}rgba(62, 207, 142, 0.45){% else %}rgba(255,255,255,0.06){% endif %}; transition: all 0.2s ease;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                <span style="font-size: 11px; font-weight: 700; color: {% if p.slug == active_project %}#3ECF8E{% else %}rgba(255,255,255,0.5){% endif %}; text-transform: uppercase;">{{ p.category or 'Enterprise B2B' }}</span>
+                {% if p.slug == active_project %}
+                <span class="mono" style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: #3ECF8E; color: #05070D; font-weight: 800;">ACTIVE</span>
+                {% endif %}
+            </div>
+            <div style="font-size: 14px; font-weight: 800; color: #FFF; margin-bottom: 4px;">{{ p.name }}</div>
+            <div style="font-size: 11px; color: rgba(255,255,255,0.5); line-height: 1.3; margin-bottom: 10px; min-height: 28px;">{{ p.description or 'Dedicated lead space' }}</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;">
+                <span class="mono" style="font-size: 11px; color: rgba(255,255,255,0.7); font-weight: 600;">{{ p.lead_count }} Leads</span>
+                <span style="font-size: 11px; color: {% if p.slug == active_project %}#3ECF8E{% else %}rgba(255,255,255,0.4){% endif %}; font-weight: 700;">Switch ➔</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- SIDE-BY-SIDE TACTILE ROLODEX ENGINE (DRAG TO MOVE) -->
+{% if leads %}
+<div class="webgpu-rolodex-container" style="position: relative; width: 100%; height: 440px; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 30%, rgba(62, 207, 142, 0.08), rgba(5, 7, 13, 0.95)); border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 28px; cursor: grab;">
+    <div class="rolodex-overlay-hud" style="position: absolute; top: 16px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none;">
+        <div class="rolodex-badge" style="background: rgba(11, 16, 25, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(62, 207, 142, 0.4); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #3ECF8E; display: flex; align-items: center; gap: 6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span id="rolodex-badge-title">Side-by-Side Tactile Rolodex Engine</span>
+        </div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.6); display: flex; align-items: center; gap: 10px; background: rgba(11,16,25,0.7); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.06);">
+            <span>🖱 Drag Left/Right to Glide</span>
+            <span style="opacity: 0.3;">|</span>
+            <span style="color: #3ECF8E; font-weight: 600;">Click Card to Inspect</span>
+        </div>
+    </div>
+
+    <canvas id="rolodex-canvas" class="webgpu-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+    
+    <!-- CONTROLS BAR -->
+    <div class="rolodex-controls-bar" style="position: absolute; bottom: 16px; left: 24px; right: 24px; display: flex; justify-content: space-between; align-items: center; z-index: 10;">
+        <button class="btn btn-secondary btn-sm" id="rolodex-prev-btn" style="padding: 6px 14px; font-weight: 700;">◀ Previous</button>
+        <div class="rolodex-active-title" id="rolodex-active-name" style="background: rgba(11, 16, 25, 0.9); backdrop-filter: blur(16px); border: 1px solid rgba(62,207,142,0.35); padding: 8px 24px; border-radius: 20px; font-size: 13px; font-weight: 700; color: #FFF; box-shadow: 0 8px 25px rgba(0,0,0,0.6);">
+            Active Card Focus
+        </div>
+        <button class="btn btn-secondary btn-sm" id="rolodex-next-btn" style="padding: 6px 14px; font-weight: 700;">Next ▶</button>
+    </div>
+</div>
+{% endif %}
+
+<!-- CONTENT GRID -->
+<div class="home-grid">
+    <!-- COMPANY DOSSIERS -->
+    <section class="home-section">
+        <h2 class="section-title">Company Dossiers</h2>
+        <div class="folder-grid" id="home-dossier-grid">
+            {% for company_name, company_leads in companies.items() %}
+            <a href="{{ url_for('project', company_name=company_name) }}" class="folder-card glass-card dossier-card-item" data-company="{{ company_name|e }}" id="proj-{{ loop.index }}">
+                <div class="folder-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    <span class="status-dot"></span>
+                </div>
+                <h3 class="folder-name">{{ company_name }}</h3>
+                <p class="folder-meta">{{ company_leads|length }} contact{{ 's' if company_leads|length != 1 else '' }}</p>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- RECENT ENTITY SCANS -->
+    <section class="home-section">
+        <h2 class="section-title">Recent Entity Scans</h2>
+        <div class="recent-list glass-card" id="home-recent-list">
+            {% for lead in leads %}
+            <div class="recent-item recent-scan-item" data-id="{{ lead.id }}" id="recent-{{ lead.id }}">
+                <div class="recent-avatar" style="background: var(--color-surface); border: 1px solid var(--color-border); font-weight: 700; color: #3ECF8E;">
+                    {{ lead.firstName[0] if lead.firstName else '?' }}
+                </div>
+                <div class="recent-info">
+                    <div class="recent-name">{{ lead.firstName }} {{ lead.lastName }}</div>
+                    <div class="recent-company">{{ lead.jobTitle or 'Executive' }} • {{ lead.companyName or 'Unknown' }}</div>
+                </div>
+                <div class="recent-badge">
+                    <span class="badge badge-verified">
+                        ✓ ACRA {{ ((lead.confidence_score or 0.95) * 100)|round|int }}%
+                    </span>
+                </div>
+                <a href="{{ url_for('card_detail', lead_id=lead.id) }}" class="btn btn-secondary btn-sm" id="btn-inspect-{{ lead.id }}">Inspect</a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<!-- CREATE NEW PROJECT MODAL -->
+<div class="modal-overlay" id="modal-new-project" style="display: none; position: fixed; inset: 0; background: rgba(5, 7, 13, 0.85); backdrop-filter: blur(16px); z-index: 9999; align-items: center; justify-content: center;">
+    <div class="glass-card" style="max-width: 480px; width: 90%; padding: 28px; border-radius: 20px; background: rgba(11, 16, 25, 0.95); border: 1px solid rgba(62, 207, 142, 0.4); box-shadow: 0 20px 60px rgba(0,0,0,0.8);">
+        <h3 style="font-size: 20px; font-weight: 800; color: #FFF; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            <span>Create New Project Space</span>
+        </h3>
+        <p style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 20px;">
+            Creates a dedicated SQL table workspace in SQLite. Scanned cards and enrichment vectors will be partitioned into this space.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px;">
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 700; color: #FFF; margin-bottom: 6px;">Project Name *</label>
+                <input type="text" id="new-project-name" placeholder="e.g. ITE Vocational EdTech Cohort" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #FFF; font-size: 13px;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 700; color: #FFF; margin-bottom: 6px;">Industry / Market Focus</label>
+                <select id="new-project-category" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #FFF; font-size: 13px;">
+                    <option value="Education & Training">Education & Vocational (ITE / EdTech)</option>
+                    <option value="Technology & AI">Technology, DeepTech & AI Startups</option>
+                    <option value="FinTech & Trading">FinTech & Quantitative Trading</option>
+                    <option value="Enterprise B2B">Enterprise B2B Trade & Services</option>
+                    <option value="Government & Public">Government & Statutory Boards</option>
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 700; color: #FFF; margin-bottom: 6px;">Description (Optional)</label>
+                <textarea id="new-project-desc" rows="2" placeholder="Brief context about this target cohort..." style="width: 100%; padding: 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #FFF; font-size: 12px;"></textarea>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="btn btn-secondary" onclick="closeNewProjectModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitCreateProject()" id="btn-submit-project" style="font-weight: 700;">
+                <span>Create SQL Space</span>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// Raw leads from server
+const rawLeads = {{ leads|tojson|safe if leads else '[]' }};
+
+function openNewProjectModal() {
+    const modal = document.getElementById('modal-new-project');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.getElementById('new-project-name')?.focus();
+    }
+}
+
+function closeNewProjectModal() {
+    const modal = document.getElementById('modal-new-project');
+    if (modal) modal.style.display = 'none';
+}
+
+async function submitCreateProject() {
+    const nameInput = document.getElementById('new-project-name');
+    const catInput = document.getElementById('new-project-category');
+    const descInput = document.getElementById('new-project-desc');
+    const btn = document.getElementById('btn-submit-project');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    if (!name) {
+        showNotification('Notice', 'Please enter a project space name.', 'info');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>Creating Space...</span>';
+    }
+
+    try {
+        const res = await apiCall('/api/projects', 'POST', {
+            name: name,
+            category: catInput ? catInput.value : 'Enterprise B2B',
+            description: descInput ? descInput.value.trim() : ''
+        });
+
+        showNotification('Success', `✓ Project Space '${name}' created!`, 'success');
+        closeNewProjectModal();
+        setTimeout(() => window.location.reload(), 300);
+    } catch(err) {
+        showNotification('Error', err.message || 'Failed to create project.', 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Create SQL Space</span>';
+        }
+    }
+}
+
+async function switchProject(slug) {
+    try {
+        await apiCall('/api/projects/switch', 'POST', { slug: slug });
+        showNotification('Switching Space', `Switching active workspace...`, 'info');
+        setTimeout(() => window.location.reload(), 250);
+    } catch(err) {
+        showNotification('Error', 'Failed to switch project.', 'error');
+    }
+}
+
+// SIDE-BY-SIDE TACTILE ROLODEX ENGINE (DRAGGABLE HORIZONTAL FLOW)
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.querySelector('.webgpu-rolodex-container');
+    const canvas = document.getElementById('rolodex-canvas');
+    const activeNameEl = document.getElementById('rolodex-active-name');
+    const prevBtn = document.getElementById('rolodex-prev-btn');
+    const nextBtn = document.getElementById('rolodex-next-btn');
+
+    if (!canvas || !container || typeof THREE === 'undefined' || rawLeads.length === 0) return;
+
+    let currentRolodexLeads = [...rawLeads];
+    const width = container.clientWidth || 800;
+    const height = container.clientHeight || 440;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x05070D, 0.025);
+
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    camera.position.set(0, 0, 4.6);
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    scene.add(ambientLight);
+
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    mainLight.position.set(2, 4, 5);
+    scene.add(mainLight);
+
+    const greenRim = new THREE.PointLight(0x3ECF8E, 2.5, 14);
+    greenRim.position.set(0, -1, 3);
+    scene.add(greenRim);
+
+    const cardsGroup = new THREE.Group();
+    scene.add(cardsGroup);
+
+    const cardGeometry = new THREE.PlaneGeometry(2.35, 1.42);
+    let cardMeshes = [];
+    const cardSpacing = 2.65;
+
+    function createGlassTexture(lead) {
+        const cv = document.createElement('canvas');
+        cv.width = 512;
+        cv.height = 300;
+        const ctx = cv.getContext('2d');
+
+        const grad = ctx.createLinearGradient(0, 0, 512, 300);
+        grad.addColorStop(0, '#0F172A');
+        grad.addColorStop(1, '#05070D');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 512, 300);
+
+        ctx.strokeStyle = 'rgba(62, 207, 142, 0.45)';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(4, 4, 504, 292);
+
+        ctx.fillStyle = '#3ECF8E';
+        ctx.font = 'bold 26px Inter, sans-serif';
+        const fullName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || 'Executive Lead';
+        ctx.fillText(fullName.substring(0, 24), 32, 58);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = '18px Inter, sans-serif';
+        ctx.fillText((lead.jobTitle || 'Executive').substring(0, 28), 32, 94);
+
+        ctx.fillStyle = '#3898EC';
+        ctx.font = 'bold 20px Inter, sans-serif';
+        ctx.fillText((lead.companyName || 'Enterprise Entity').substring(0, 26), 32, 134);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.font = '15px monospace';
+        ctx.fillText(`UEN: ${lead.companyCode || '202312345K'}`, 32, 170);
+        ctx.fillText(`TEL: ${lead.phone || '+65 9123 4567'}`, 32, 198);
+
+        ctx.fillStyle = '#3ECF8E';
+        ctx.font = 'bold 15px monospace';
+        ctx.fillText('✓ ACRA VERIFIED', 32, 250);
+
+        return new THREE.CanvasTexture(cv);
+    }
+
+    let currentIndex = 0;
+    let targetIndex = 0;
+
+    function buildCards(leadsList) {
+        currentRolodexLeads = leadsList || [];
+        while (cardsGroup.children.length > 0) {
+            const obj = cardsGroup.children[0];
+            cardsGroup.remove(obj);
+            if (obj.material) {
+                if (obj.material.map) obj.material.map.dispose();
+                obj.material.dispose();
+            }
+        }
+        cardMeshes = [];
+        currentIndex = 0;
+        targetIndex = 0;
+
+        const count = currentRolodexLeads.length;
+        if (count === 0) {
+            if (activeNameEl) activeNameEl.textContent = 'No cards in active project space';
+            return;
+        }
+
+        for (let i = 0; i < count; i++) {
+            const lead = currentRolodexLeads[i];
+            const texture = createGlassTexture(lead);
+            const material = new THREE.MeshPhysicalMaterial({
+                map: texture,
+                transparent: true,
+                roughness: 0.15,
+                metalness: 0.1,
+                clearcoat: 0.8,
+                side: THREE.DoubleSide
+            });
+
+            const mesh = new THREE.Mesh(cardGeometry, material);
+            mesh.userData = { index: i, data: lead };
+            cardsGroup.add(mesh);
+            cardMeshes.push(mesh);
+        }
+        updateCardPositions();
+    }
+
+    buildCards(rawLeads);
+
+    // ULTRA-RESPONSIVE CLICK & DRAG ENGINE (POINTER, MOUSE, TOUCH)
+    let isDragging = false;
+    let dragStartX = 0;
+    let lastDragX = 0;
+    let dragDistance = 0;
+    let dragVelocity = 0;
+
+    canvas.style.touchAction = 'none';
+    container.style.touchAction = 'none';
+    container.style.userSelect = 'none';
+
+    function handleDragStart(clientX, pointerId) {
+        if (currentRolodexLeads.length === 0) return;
+        isDragging = true;
+        dragStartX = clientX;
+        lastDragX = clientX;
+        dragDistance = 0;
+        dragVelocity = 0;
+        container.style.cursor = 'grabbing';
+        canvas.style.cursor = 'grabbing';
+    }
+
+    function handleDragMove(clientX) {
+        if (!isDragging || currentRolodexLeads.length === 0) return;
+        const deltaX = clientX - lastDragX;
+        lastDragX = clientX;
+        dragDistance += Math.abs(deltaX);
+        dragVelocity = deltaX;
+
+        const pxPerCard = Math.max(160, width / 3.4);
+        targetIndex -= (deltaX / pxPerCard);
+        targetIndex = Math.max(0, Math.min(currentRolodexLeads.length - 1, targetIndex));
+        currentIndex += (targetIndex - currentIndex) * 0.45;
+    }
+
+    function handleDragEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        container.style.cursor = 'grab';
+        canvas.style.cursor = 'grab';
+
+        const momentum = -(dragVelocity / 40);
+        targetIndex = Math.max(0, Math.min(currentRolodexLeads.length - 1, Math.round(targetIndex + momentum)));
+    }
+
+    container.addEventListener('pointerdown', (e) => {
+        handleDragStart(e.clientX, e.pointerId);
+        try { container.setPointerCapture(e.pointerId); } catch(err) {}
+        e.preventDefault();
+    });
+
+    window.addEventListener('pointermove', (e) => {
+        handleDragMove(e.clientX);
+    });
+
+    window.addEventListener('pointerup', (e) => {
+        handleDragEnd();
+        try { container.releasePointerCapture(e.pointerId); } catch(err) {}
+    });
+
+    window.addEventListener('pointercancel', (e) => {
+        handleDragEnd();
+    });
+
+    // Touch Support
+    container.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 0) handleDragStart(e.touches[0].clientX);
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+        if (isDragging && e.touches.length > 0) handleDragMove(e.touches[0].clientX);
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+        handleDragEnd();
+    });
+
+    // WHEEL SCROLL
+    container.addEventListener('wheel', (e) => {
+        if (currentRolodexLeads.length === 0) return;
+        e.preventDefault();
+        targetIndex += (e.deltaY > 0 ? 0.35 : -0.35);
+        targetIndex = Math.max(0, Math.min(currentRolodexLeads.length - 1, targetIndex));
+    }, { passive: false });
+
+    // CLICK TO INSPECT CARD
+    container.addEventListener('click', (e) => {
+        if (dragDistance > 8 || currentRolodexLeads.length === 0) return;
+
+        const rect = container.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((e.clientX - rect.left) / width) * 2 - 1,
+            -((e.clientY - rect.top) / height) * 2 + 1
+        );
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(cardMeshes);
+
+        if (intersects.length > 0) {
+            const clickedMesh = intersects[0].object;
+            const clickedIdx = clickedMesh.userData.index;
+            if (Math.abs(clickedIdx - Math.round(currentIndex)) < 0.35) {
+                const leadData = clickedMesh.userData.data;
+                if (leadData && leadData.id) {
+                    window.location.href = `/card/${leadData.id}`;
+                }
+            } else {
+                targetIndex = clickedIdx;
+            }
+        }
+    });
+
+    function updateCardPositions() {
+        const count = currentRolodexLeads.length;
+        if (count === 0) return;
+
+        cardMeshes.forEach((mesh, idx) => {
+            const offset = idx - currentIndex;
+            mesh.position.x = offset * cardSpacing;
+            mesh.position.z = -Math.pow(Math.abs(offset), 1.2) * 0.45;
+            mesh.rotation.y = -Math.sign(offset) * Math.min(Math.abs(offset) * 0.16, 0.42);
+            const scale = Math.max(0.78, 1.06 - Math.abs(offset) * 0.14);
+            mesh.scale.set(scale, scale, scale);
+        });
+
+        const activeIdx = Math.max(0, Math.min(count - 1, Math.round(currentIndex)));
+        const focusLead = currentRolodexLeads[activeIdx];
+        if (focusLead && activeNameEl) {
+            activeNameEl.textContent = `${focusLead.firstName || ''} ${focusLead.lastName || ''} — ${focusLead.companyName || ''}`;
+        }
+    }
+
+    if (prevBtn) prevBtn.addEventListener('click', () => { targetIndex = Math.max(0, Math.round(targetIndex) - 1); });
+    if (nextBtn) nextBtn.addEventListener('click', () => { targetIndex = Math.min(currentRolodexLeads.length - 1, Math.round(targetIndex) + 1); });
+
+    function resizeCanvas() {
+        const w = container.clientWidth || 800;
+        const h = container.clientHeight || 440;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    setTimeout(resizeCanvas, 100);
+
+    function animate() {
+        requestAnimationFrame(animate);
+        if (currentRolodexLeads.length > 0) {
+            currentIndex += (targetIndex - currentIndex) * 0.12;
+
+            const time = Date.now() * 0.0015;
+            cardMeshes.forEach((mesh, idx) => {
+                mesh.position.y = Math.sin(time + idx * 0.7) * 0.03;
+            });
+
+            updateCardPositions();
+        }
+        renderer.render(scene, camera);
+    }
+    animate();
+});
+</script>
+{% endblock %}

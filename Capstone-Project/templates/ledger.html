@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}Ledger{% endblock %}
+{% block body_class %}page-ledger{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="page-title">CRM <span class="accent">Ledger</span></h1>
+        <p class="page-subtitle">Data density, transparency, and bulk execution.</p>
+    </div>
+    <div class="topbar-right">
+        <div style="position: relative; display: inline-block;">
+            <button class="btn btn-secondary" onclick="toggleExportMenu(event)" style="display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export Data ▾
+            </button>
+            <div id="export-dropdown-menu" class="glass-card" style="display: none; position: absolute; right: 0; top: 44px; z-index: 1000; width: 220px; padding: 8px; flex-direction: column; gap: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <button class="btn btn-secondary" onclick="exportData('csv')" style="width: 100%; text-align: left; justify-content: flex-start; gap: 8px; font-size: 13px;">
+                    📄 Export to CSV (Full)
+                </button>
+                <button class="btn btn-secondary" onclick="exportData('acra')" style="width: 100%; text-align: left; justify-content: flex-start; gap: 8px; font-size: 13px; color: #3ECF8E;">
+                    🏛 ACRA Govt Report (.csv)
+                </button>
+                <button class="btn btn-secondary" onclick="exportData('json')" style="width: 100%; text-align: left; justify-content: flex-start; gap: 8px; font-size: 13px; color: #3898EC;">
+                    ⚡ AI JSON Data Package
+                </button>
+            </div>
+        </div>
+        <button class="btn btn-secondary" onclick="updateAcraSync()" title="Re-sync metadata with Singapore ACRA Govt Registry & AI Enrichment">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Update ACRA & Sync
+        </button>
+        <button class="btn btn-secondary" onclick="openEmailStudio('single')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            Preview Email Studio
+        </button>
+        <button class="btn btn-primary" onclick="openEmailStudio('bulk')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Bulk Activation: Auto Outreach
+        </button>
+        <button class="btn btn-danger" onclick="showNotification('Emergency Stop', 'Outreach sequences halted.', 'warning')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
+            Emergency Stop
+        </button>
+    </div>
+</div>
+
+<div class="ledger-stats kpi-grid">
+    <div class="kpi-card glass-card">
+        <div class="kpi-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Total Contacts</div>
+            <div class="kpi-value mono">{{ stats.total }}</div>
+        </div>
+    </div>
+    <div class="kpi-card glass-card">
+        <div class="kpi-icon" style="color: var(--color-ai); background: rgba(56, 152, 236, 0.1);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">AI Enriched</div>
+            <div class="kpi-value mono">{{ stats.ai_enriched }} <span style="font-size: 14px; opacity: 0.7;">({{ stats.ai_enriched_pct }}%)</span></div>
+        </div>
+    </div>
+    <div class="kpi-card glass-card">
+        <div class="kpi-icon" style="color: var(--color-primary);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">High Confidence</div>
+            <div class="kpi-value mono">{{ stats.high_conf_pct }}%</div>
+        </div>
+    </div>
+    <div class="kpi-card glass-card">
+        <div class="kpi-icon" style="color: var(--color-warning); background: rgba(245, 158, 11, 0.1);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">CRM Synced</div>
+            <div class="kpi-value mono">{{ stats.synced }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="ledger-container">
+    <div class="ledger-main glass-card">
+        <div class="ledger-toolbar">
+            <div class="search-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="ledger-search" placeholder="Search records..." class="form-input" onkeyup="filterTable(this.value, document.getElementById('status-filter').value)" value="{{ request.args.get('company', '') }}">
+            </div>
+            <div class="filter-box" style="display: flex; gap: 8px;">
+                <select id="status-filter" class="form-input">
+                    <option value="all">All Statuses</option>
+                    <option value="SYNCED">Synced</option>
+                    <option value="Pending">Pending</option>
+                </select>
+                <select id="confidence-filter" class="form-input">
+                    <option value="all">All Confidence</option>
+                    <option value="high">High (&ge; 80%)</option>
+                    <option value="med">Medium (50-79%)</option>
+                    <option value="low">Low (&lt; 50%)</option>
+                </select>
+                <select id="industry-filter" class="form-input">
+                    <option value="all">All Industries</option>
+                </select>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="toggleAuditTrail()">Audit Trail ◨</button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="data-table" id="ledger-table">
+                <thead>
+                    <tr>
+                        <th>Contact ID</th>
+                        <th>Company</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Last Interaction</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in leads %}
+                    {% set raw_c = lead.confidence_score %}
+                    {% set c_val = (raw_c|float * 100)|int if raw_c is not none else 85 %}
+                    <tr onclick="selectRecord({{ lead.id }})" data-status="{{ lead.status|default('Pending') }}" data-search="{{ lead.firstName|lower }} {{ lead.lastName|lower }} {{ lead.companyName|lower }}" data-confidence="{{ c_val }}" data-industry="{{ lead.industry|default('')|lower }}" class="ledger-row">
+                        <td class="mono text-muted">ID-{{ "%04d"|format(lead.id) }}</td>
+                        <td>
+                            {% if lead.companyName %}
+                            <a href="{{ url_for('project', company_name=lead.companyName) }}" onclick="event.stopPropagation();" style="color: #3898EC; font-weight: 600; text-decoration: underline;" title="View Company ACRA Profile & Team Roster">🏛 {{ lead.companyName }}</a>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td><strong style="color: #FFF;">{{ lead.firstName }} {{ lead.lastName }}</strong></td>
+                        <td>
+                            {{ lead.email or '—' }}
+                            {% if lead.email_source == 'ai_enriched' %}<span class="badge badge-ai">AI</span>{% endif %}
+                        </td>
+                        <td>
+                            {{ lead.phone or '—' }}
+                            {% if lead.phone_source == 'ai_enriched' %}<span class="badge badge-ai">AI</span>{% endif %}
+                        </td>
+                        <td class="mono text-muted" style="font-size: 12px; white-space: nowrap;">{{ lead.timestamp or '—' }}</td>
+                        <td>
+                            {% if lead.status == 'SYNCED' %}
+                            <span class="badge badge-approved" style="cursor: pointer;" title="Click to toggle status to Pending" onclick="event.stopPropagation(); toggleLeadStatus({{ lead.id }});">✓ Synced</span>
+                            {% else %}
+                            <span class="badge badge-pending" style="cursor: pointer;" title="Click to sync status to SYNCED" onclick="event.stopPropagation(); toggleLeadStatus({{ lead.id }});">⏳ Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="mono" style="color: #3ECF8E; font-weight: 700;">
+                            {{ c_val }}%
+                        </td>
+                        <td style="white-space: nowrap;">
+                            <a href="#" class="action-icon" style="color: #3ECF8E;" title="Update ACRA & AI Data" onclick="event.stopPropagation(); updateSingleLead({{ lead.id }});"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg></a>
+                            <a href="{{ url_for('card_detail', lead_id=lead.id) }}" class="action-icon" title="View"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a>
+                            <a href="#" class="action-icon text-rose" title="Delete" onclick="event.stopPropagation(); deleteRecord({{ lead.id }});"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="9" class="text-center text-muted" style="padding: 32px;">No records found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- AUDIT TRAIL DRAWER -->
+    <div class="audit-trail glass-card" id="audit-trail-drawer" style="display:none;">
+        <div class="audit-header">
+            <h3>Audit Trail Drawer</h3>
+            <button class="action-icon" onclick="toggleAuditTrail()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="audit-search">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Search logs..." class="form-input">
+        </div>
+        <div class="audit-logs">
+            <!-- Simulated logs -->
+            <div class="log-entry">
+                <span class="log-time mono text-muted">Just now | SYSTEM (AI)</span>
+                <span class="log-action text-emerald">ENRICHED:</span>
+                <span class="log-detail">Contact ID-0004 AI Inference complete</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time mono text-muted">10 mins ago | SYSTEM (SMTP)</span>
+                <span class="log-action text-blue">DISPATCHED:</span>
+                <span class="log-detail">Outreach ID 123 to 50 contacts</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time mono text-muted">1 hour ago | USER (Admin)</span>
+                <span class="log-action text-amber">APPROVED:</span>
+                <span class="log-detail">Contact ID-0002 Verified Enrichment</span>
+            </div>
+        </div>
+        </div>
+    </div>
+</div>
+
+<!-- EMAIL STUDIO MODAL -->
+<div class="modal-overlay" id="email-studio-modal" style="display:none;">
+    <div class="modal-card email-studio-card glass-card">
+        <div class="modal-header">
+            <h2 class="modal-title font-display">AI Email Campaign Studio <span class="text-muted text-sm">(CP001 Outreach)</span></h2>
+            <button class="action-icon" onclick="closeEmailStudio()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        
+        <div class="modal-body">
+            {% set valid_leads = leads | selectattr("email") | list %}
+            {% if not valid_leads %}
+            <div class="alert warning-alert" style="margin-bottom: 24px; padding: 16px; border-radius: 8px; border: 1px solid var(--color-warning); background: rgba(245,158,11,0.1); color: var(--color-warning);">
+                No contacts with valid email addresses found in the ledger.
+            </div>
+            {% else %}
+            
+            <div class="studio-mode-toggle" style="display: flex; gap: 8px; margin-bottom: 24px;">
+                <button class="btn tab-btn active" id="btn-mode-single" onclick="setEmailStudioMode('single')" style="flex: 1;">Single Targeted Contact</button>
+                <button class="btn tab-btn" id="btn-mode-bulk" onclick="setEmailStudioMode('bulk')" style="flex: 1;">Automated Bulk Batch to All Contacts</button>
+            </div>
+            
+            <!-- SINGLE MODE -->
+            <div id="email-studio-single" style="display: block;">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label">Select Target Contact for AI Email Generation:</label>
+                    <select class="form-input" id="email-target-select">
+                        <option value="" disabled selected>-- Select a contact --</option>
+                        {% for l in valid_leads %}
+                        <option value="{{ l.id }}">#{{ "%03d"|format(l.id) }} - {{ l.firstName }} {{ l.lastName }} ({{ l.companyName }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <button class="btn btn-secondary w-full" onclick="generateEmailDraft()" style="margin-bottom: 24px;">Generate Draft with Gemini AI</button>
+                
+                <div id="email-draft-container" style="display: none; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 24px;">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label class="form-label">Send To (Test Dummy Email):</label>
+                        <input type="email" class="form-input" id="email-test-to" value="leadflowaicapstone@gmail.com">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label class="form-label">Subject:</label>
+                        <input type="text" class="form-input" id="email-draft-subject">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <label class="form-label">Body:</label>
+                        <textarea class="form-input" id="email-draft-body" style="height: 220px; font-family: var(--font-body);"></textarea>
+                    </div>
+                    
+                    <button class="btn btn-primary w-full" id="btn-send-single" onclick="sendSingleEmail()">Send Test Email (leadflowaicapstone@gmail.com)</button>
+                </div>
+            </div>
+            
+            <!-- BULK MODE -->
+            <div id="email-studio-bulk" style="display: none;">
+                <div class="alert info-alert" style="margin-bottom: 24px; padding: 16px; border-radius: 8px; border: 1px solid var(--color-primary); background: rgba(62,207,142,0.1); color: var(--color-primary);">
+                    Ready to generate and dispatch personalized AI emails to all {{ valid_leads|length }} valid contacts. (Rerouted to test email: leadflowaicapstone@gmail.com).
+                </div>
+                
+                <button class="btn btn-primary w-full" style="padding: 16px; font-size: 16px;" onclick="emailAll()">Launch Automated Bulk AI Email Campaign</button>
+            </div>
+            
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

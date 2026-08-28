@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block body_class %}page-landing no-sidebar{% endblock %}
+
+{% block layout %}
+<!-- Landing page has NO sidebar — full-bleed dark canvas -->
+<div class="landing-container">
+    <!-- HERO SECTION -->
+    <section class="landing-hero">
+        <div class="hero-content">
+            <div class="hero-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>AI-Powered Contact Intelligence</span>
+            </div>
+
+            <h1 class="hero-title">
+                Predict Revenue Outcomes with
+                <span class="hero-accent">95% Accuracy.</span>
+            </h1>
+
+            <p class="hero-subtitle">
+                AI-powered business card scanning and CRM enrichment.
+                Build your professional network instantly. Zero missed leads.
+            </p>
+
+            <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg hero-cta" id="btn-start">
+                Start Predicting Now
+            </a>
+        </div>
+
+        <div class="hero-showcase">
+            <div class="showcase-card glass-card">
+                <div class="showcase-header">
+                    <span class="showcase-label">Predictive Score Matrix</span>
+                    <div class="showcase-search">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <span>Search</span>
+                    </div>
+                </div>
+                <table class="showcase-table">
+                    <thead>
+                        <tr>
+                            <th>Lead Source</th>
+                            <th>Score</th>
+                            <th>Deal Size</th>
+                            <th>Probability</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Organic Search</td>
+                            <td class="mono">88</td>
+                            <td class="mono">$150k</td>
+                            <td class="mono accent">92%</td>
+                            <td><span class="badge badge-high">⚡ HIGH PRIORITY</span></td>
+                        </tr>
+                        <tr>
+                            <td>Email Campaign</td>
+                            <td class="mono">65</td>
+                            <td class="mono">$45k</td>
+                            <td class="mono">53%</td>
+                            <td><span class="badge badge-med">🌱 NURTURE</span></td>
+                        </tr>
+                        <tr>
+                            <td>Organic Search</td>
+                            <td class="mono">76</td>
+                            <td class="mono">$150k</td>
+                            <td class="mono accent">82%</td>
+                            <td><span class="badge badge-high">⚡ HIGH PRIORITY</span></td>
+                        </tr>
+                        <tr>
+                            <td>Email Campaign</td>
+                            <td class="mono">65</td>
+                            <td class="mono">$45k</td>
+                            <td class="mono">53%</td>
+                            <td><span class="badge badge-med">🌱 NURTURE</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ENTRY OPTIONS -->
+    <section class="landing-options">
+        <div class="option-card glass-card" onclick="navigateTo('/login')">
+            <div class="option-icon" style="background: rgba(62,207,142,0.1);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            </div>
+            <h3>👋 Sign In / Log In</h3>
+            <p>Access your saved projects and full scanned card library securely.</p>
+            <button class="btn btn-primary" id="btn-go-login">Sign In / Log In</button>
+        </div>
+        <div class="option-card glass-card" onclick="loginAs('guest')">
+            <div class="option-icon" style="background: rgba(56,152,236,0.1);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3898EC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <h3>🏢 Enter as Guest</h3>
+            <p>Jump straight in. Explore the scanner and contacts without an account.</p>
+            <button class="btn btn-secondary" id="btn-go-guest">Enter as Guest</button>
+        </div>
+    </section>
+</div>
+{% endblock %}

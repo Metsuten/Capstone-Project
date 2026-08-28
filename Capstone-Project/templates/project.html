@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Company Profile: {{ company_name }}{% endblock %}
+{% block body_class %}page-project{% endblock %}
+
+{% block content %}
+<!-- TOPBAR -->
+<div class="topbar">
+    <div class="topbar-left">
+        <a href="{{ url_for('home') }}" class="btn btn-secondary" style="margin-bottom: 12px; display: inline-flex; align-items: center; gap: 6px;">← Back to Dashboard</a>
+        <h1 class="page-title">Company Profile: <span class="accent">{{ company_name }}</span></h1>
+        <p class="page-subtitle">Deep Corporate Intelligence, Executive Leadership & Personnel Directory</p>
+    </div>
+    <div class="topbar-right">
+        <span class="chip"><span class="chip-dot dot-emerald"></span> {{ company_info.status }}</span>
+        <span class="chip"><span class="chip-dot dot-blue"></span> UEN: {{ company_info.uen }}</span>
+    </div>
+</div>
+
+<!-- 1. ACRA DEEP BUSINESS INTELLIGENCE HEADER PANEL -->
+<div class="glass-card" style="margin-bottom: 32px; padding: 28px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
+        
+        <!-- Left Column: Business Overview & Mission -->
+        <div style="flex: 2; min-width: 320px;">
+            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px;">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(56, 152, 236, 0.12); border: 1px solid rgba(56, 152, 236, 0.3); display: flex; align-items: center; justify-content: center; color: #3898EC; shrink: 0;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 10h6"/><path d="M9 14h6"/><path d="M9 18h6"/></svg>
+                </div>
+                <div>
+                    <h2 style="font-size: 26px; margin: 0; color: #FFF; font-weight: 800;">{{ company_info.name }}</h2>
+                    <span style="font-size: 13px; color: #3898EC; font-family: var(--font-mono);">UEN: {{ company_info.uen }} | ACRA Live Verified Entity</span>
+                </div>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.02); border-left: 3px solid #3ECF8E; padding: 18px 20px; border-radius: 0 14px 14px 0; margin-bottom: 20px;">
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #3ECF8E; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <span>About the Company</span>
+                    <span class="badge badge-ai" style="font-size: 10px;">AI Summary</span>
+                </div>
+                <div style="font-size: 13.5px; color: rgba(255,255,255,0.9); line-height: 1.65; display: flex; flex-direction: column; gap: 10px;">
+                    {% for paragraph in company_info.about.split('\n\n') %}
+                    <p style="margin: 0;">{{ paragraph }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- EXECUTIVE LEADERSHIP / GOVERNANCE BOARD -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 12px;">
+                <div style="background: rgba(62, 207, 142, 0.05); border: 1px solid rgba(62, 207, 142, 0.15); border-radius: 12px; padding: 14px;">
+                    <div style="font-size: 11px; color: #3ECF8E; text-transform: uppercase; font-weight: 700;">{{ company_info.leadership_primary_title or 'Top Leader' }}</div>
+                    <div style="font-size: 15px; font-weight: 700; color: #FFF; margin-top: 4px;">{{ company_info.ceo_name }}</div>
+                </div>
+                
+                <div style="background: rgba(56, 152, 236, 0.05); border: 1px solid rgba(56, 152, 236, 0.15); border-radius: 12px; padding: 14px;">
+                    <div style="font-size: 11px; color: #3898EC; text-transform: uppercase; font-weight: 700;">{{ company_info.leadership_secondary_title or 'Technical & Operations Lead' }}</div>
+                    <div style="font-size: 15px; font-weight: 700; color: #FFF; margin-top: 4px;">{{ company_info.cto_name }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: ACRA Metrics & Financial Scale -->
+        <div style="flex: 1; min-width: 280px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px;">
+            <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-primary); font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
+                <span>Company Details & Scale</span>
+                <span class="badge badge-ai" style="font-size: 10px;">Govt Sync</span>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span class="text-muted">Industry:</span>
+                    <span style="color: #FFF; font-weight: 600; text-align: right; max-width: 170px;">{{ company_info.ssic_code }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span class="text-muted">Estimated Value / Net Worth:</span>
+                    <span class="mono" style="color: #3898EC; font-weight: 700; text-align: right; max-width: 170px;">{{ company_info.net_worth }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span class="text-muted">Estimated Annual Revenue:</span>
+                    <span class="mono" style="color: #3ECF8E; font-weight: 700;">{{ company_info.revenue_bracket }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span class="text-muted">Number of Employees:</span>
+                    <span style="color: #FFF; font-weight: 600;">{{ company_info.headcount }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span class="text-muted">Main Customers:</span>
+                    <span style="color: #FFF; font-weight: 500; text-align: right; max-width: 170px;">{{ company_info.target_clients }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
+                    <span class="text-muted">Registered Address:</span>
+                    <span style="color: #FFF; font-weight: 500; text-align: right; max-width: 170px;">{{ company_info.address }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CURRENT ACTIVE PROJECTS & KEY ACHIEVEMENTS -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 20px;">
+        <!-- Flagship Project Card -->
+        <div style="background: rgba(56, 152, 236, 0.05); border: 1px solid rgba(56, 152, 236, 0.2); border-radius: 14px; padding: 18px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3898EC" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <div style="font-size: 11px; text-transform: uppercase; color: #3898EC; font-weight: 700; letter-spacing: 0.5px;">Current Main Project</div>
+            </div>
+            <div style="font-size: 14.5px; font-weight: 700; color: #FFF; margin-top: 4px;">{{ company_info.current_project }}</div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 4px;">What the company is actively focusing on and building in 2026.</div>
+        </div>
+
+        <!-- Major Corporate Achievements Card -->
+        <div style="background: rgba(62, 207, 142, 0.05); border: 1px solid rgba(62, 207, 142, 0.2); border-radius: 14px; padding: 18px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <div style="font-size: 11px; text-transform: uppercase; color: #3ECF8E; font-weight: 700; letter-spacing: 0.5px;">Key Achievements</div>
+            </div>
+            <ul style="margin: 6px 0 0 0; padding-left: 18px; font-size: 12.5px; color: rgba(255,255,255,0.85); display: flex; flex-direction: column; gap: 4px;">
+                {% for ach in company_info.achievements %}
+                <li>{{ ach }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- SALES PROSPECTING HOOK ANGLE -->
+    <div style="margin-top: 16px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 14px;">
+        <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(245, 158, 11, 0.15); display: flex; align-items: center; justify-content: center; shrink: 0; color: #F59E0B;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div>
+            <div style="font-size: 11px; text-transform: uppercase; color: #F59E0B; font-weight: 700;">Suggested Sales Pitch Angle</div>
+            <div style="font-size: 13px; color: rgba(255,255,255,0.9); margin-top: 2px;">{{ company_info.sales_pitch_angle }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. TEAM DIRECTORY HEADER & INSTANT FILTER SEARCH -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px;">
+    <div>
+        <h2 style="font-size: 20px; margin: 0; color: #FFF;">Personnel & Team Roster</h2>
+        <p class="text-muted" style="font-size: 13px; margin-top: 2px;">Showing {{ leads|length }} associated contact{{ 's' if leads|length != 1 else '' }} working at {{ company_name }}</p>
+    </div>
+
+    <!-- Quick Team Filter Input -->
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <select id="roster-role-filter" class="form-control" style="border-radius: 40px; background: rgba(255,255,255,0.04); padding-left: 16px; padding-right: 32px; height: 38px;">
+            <option value="all">All Roles</option>
+            <option value="executive">Executive / C-Suite</option>
+            <option value="technology">Technology & Engineering</option>
+            <option value="sales">Sales & Marketing</option>
+            <option value="operations">Operations & HR</option>
+        </select>
+        <div style="position: relative; width: 280px;">
+            <input type="text" id="roster-search-input" class="form-control" placeholder="Search employee or role..." style="padding-left: 36px; border-radius: 40px; background: rgba(255,255,255,0.04); height: 38px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+    </div>
+</div>
+
+<!-- 3. TEAM MEMBERS CONTACT CARDS GRID -->
+<div class="folder-grid" id="roster-grid">
+    {% for lead in leads %}
+    <div class="contact-card glass-card roster-card-item" data-search="{{ lead.firstName|lower }} {{ lead.lastName|lower }} {{ lead.jobTitle|default('')|lower }} {{ lead.email|default('')|lower }}">
+        <div class="contact-card-header">
+            <div class="wb-avatar contact-avatar" style="background: linear-gradient(135deg, #3ECF8E, #3898EC);">
+                {{ (lead.firstName or 'U')[0] }}{{ (lead.lastName or '')[0] }}
+            </div>
+            {% set conf = lead.confidence_score|default(0)|float %}
+            {% if conf >= 0.8 %}
+            <span class="badge badge-high" style="position: absolute; top: 16px; right: 16px;">HIGH CONF.</span>
+            {% elif conf >= 0.7 %}
+            <span class="badge badge-med" style="position: absolute; top: 16px; right: 16px;">REVIEW</span>
+            {% else %}
+            <span class="badge badge-low" style="position: absolute; top: 16px; right: 16px;">LOW CONF.</span>
+            {% endif %}
+        </div>
+        
+        <div class="contact-card-body">
+            <h3 class="contact-name">{{ lead.firstName }} {{ lead.lastName }}</h3>
+            <p class="contact-job" style="color: #3ECF8E; font-weight: 600;">{{ lead.jobTitle or 'Executive Officer' }}</p>
+            <div class="contact-meta">
+                <span class="text-muted mono" style="font-size: 11px;">ID-{{ "%04d"|format(lead.id) }}</span>
+                <span class="text-muted" style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">{{ lead.email or '—' }}</span>
+            </div>
+        </div>
+        
+        <div class="contact-card-footer">
+            <a href="{{ url_for('card_detail', lead_id=lead.id) }}" class="btn btn-primary" style="width: 100%; text-align: center; padding: 8px;">View Contact Profile ➔</a>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not leads %}
+    <div class="empty-state glass-card" style="grid-column: 1 / -1;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+        <h3>No team members listed yet</h3>
+        <p>Scan a business card for {{ company_name }} to add contacts to this company profile.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('roster-search-input');
+    const roleFilter = document.getElementById('roster-role-filter');
+    const rosterCards = document.querySelectorAll('.roster-card-item');
+
+    function filterRoster() {
+        const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
+        const role = (roleFilter ? roleFilter.value : 'all');
+
+        rosterCards.forEach(card => {
+            const text = card.getAttribute('data-search') || '';
+            const jobTitle = text.toLowerCase();
+            
+            let matchesRole = true;
+            if (role === 'executive') matchesRole = jobTitle.includes('chief') || jobTitle.includes('ceo') || jobTitle.includes('cto') || jobTitle.includes('vp') || jobTitle.includes('head') || jobTitle.includes('director') || jobTitle.includes('president');
+            else if (role === 'technology') matchesRole = jobTitle.includes('tech') || jobTitle.includes('engineer') || jobTitle.includes('developer') || jobTitle.includes('ai') || jobTitle.includes('data') || jobTitle.includes('software');
+            else if (role === 'sales') matchesRole = jobTitle.includes('sales') || jobTitle.includes('marketing') || jobTitle.includes('account');
+            else if (role === 'operations') matchesRole = jobTitle.includes('operations') || jobTitle.includes('hr') || jobTitle.includes('manager');
+
+            if ((!query || text.includes(query)) && matchesRole) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    if (searchInput) searchInput.addEventListener('input', filterRoster);
+    if (roleFilter) roleFilter.addEventListener('change', filterRoster);
+});
+</script>
+{% endblock %}

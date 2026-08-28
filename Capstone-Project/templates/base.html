@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LeadFlow AI — Intelligent Contact Intelligence Platform. Scan, Extract, Connect.">
+    <title>{% block title %}LeadFlow AI{% endblock %} — MX v3.0</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <div class="scroll-progress-bar"></div>
+
+    {% block layout %}
+    <!-- SIDEBAR NAVIGATION -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <span class="logo-brand">LeadFlow</span>
+                    <span class="logo-version">v3.0</span>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <button type="button" class="nav-item" onclick="openSpotlight()" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; margin-bottom: 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span style="font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.8);">Search</span>
+                </div>
+                <span class="mono" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(62, 207, 142, 0.15); color: #3ECF8E; border: 1px solid rgba(62, 207, 142, 0.3);">⌘K</span>
+            </button>
+            <a href="{{ url_for('home') }}" class="nav-item {% if active_page == 'home' %}active{% endif %}" id="nav-home">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>Home</span>
+            </a>
+            <a href="{{ url_for('scan') }}" class="nav-item {% if active_page == 'scan' %}active{% endif %}" id="nav-scan">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+                <span>Scan</span>
+            </a>
+            <a href="{{ url_for('review') }}" class="nav-item {% if active_page == 'review' %}active{% endif %}" id="nav-review">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <span>Verification Desk</span>
+                {% if review_count is defined and review_count > 0 %}
+                <span class="nav-badge">{{ review_count }}</span>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('workbench') }}" class="nav-item {% if active_page == 'workbench' %}active{% endif %}" id="nav-workbench">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                <span>Workbench</span>
+            </a>
+            <a href="{{ url_for('ledger') }}" class="nav-item {% if active_page == 'ledger' %}active{% endif %}" id="nav-ledger">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                <span>Ledger</span>
+            </a>
+            <a href="{{ url_for('graph') }}" class="nav-item {% if active_page == 'graph' %}active{% endif %}" id="nav-graph">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                <span>Network Map</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            {% if user %}
+            <div class="sidebar-user">
+                <div class="user-avatar" style="background: {{ user.color }}">{{ user.avatar }}</div>
+                <div class="user-info">
+                    <span class="user-name">{{ user.name }}</span>
+                    <span class="user-email">{{ user.email }}</span>
+                </div>
+            </div>
+            <button class="nav-item logout-btn" onclick="apiCall('/api/logout', 'POST').then(() => navigateTo('/'))">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span>Logout</span>
+            </button>
+            {% endif %}
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+    {% endblock %}
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container"></div>
+
+    <!-- CONFIRM MODAL -->
+    <div class="modal-overlay" id="confirm-modal" style="display:none;">
+        <div class="modal-card glass-card">
+            <h3 class="modal-title" id="modal-title"></h3>
+            <p class="modal-message" id="modal-message"></p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+                <button class="btn btn-primary" id="modal-confirm-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SPOTLIGHT COMMAND K SEARCH MODAL -->
+    <div id="spotlight-modal" class="modal-overlay" style="display:none; align-items: flex-start; padding-top: 100px; z-index: 99999;" onclick="if(event.target === this) closeSpotlight();">
+        <div class="glass-card" style="width: 100%; max-width: 620px; padding: 20px; border-radius: 20px; background: rgba(11, 16, 25, 0.95); border: 1px solid rgba(62, 207, 142, 0.4); box-shadow: 0 25px 60px rgba(0,0,0,0.8); backdrop-filter: blur(20px);">
+            <div style="display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 14px; margin-bottom: 14px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="spotlight-input" placeholder="Search contacts, companies, ACRA UEN, emails, job titles..." style="flex: 1; background: transparent; border: none; outline: none; font-size: 16px; color: #FFF; font-weight: 500;" oninput="onSpotlightInput(this.value)">
+                <span class="mono" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">ESC</span>
+            </div>
+            
+            <div id="spotlight-results" style="max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+                <div class="text-muted" style="text-align: center; padding: 30px; font-size: 13px;">
+                    Type to search across CRM database & Singapore ACRA Registry...
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; font-size: 11px; color: rgba(255,255,255,0.4);">
+                <span>Press <strong style="color:#FFF;">ESC</strong> to exit</span>
+                <span>LeadFlow AI Command Palette (⌘K)</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/particle_canvas.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

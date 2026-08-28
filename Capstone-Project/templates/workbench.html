@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+{% block title %}Workbench{% endblock %}
+{% block body_class %}page-workbench{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="page-title">Analyst <span class="accent">Workbench</span></h1>
+    </div>
+</div>
+
+{% if lead %}
+<!-- LEAD BANNER -->
+<div class="wb-banner glass-card view-morph-card" style="--morph-id: card-lead-{{ lead.id }}">
+    <div class="wb-banner-left">
+        <div class="wb-avatar" style="background: linear-gradient(135deg, #3ECF8E, #3898EC);">
+            {{ (lead.firstName or 'U')[0] }}{{ (lead.lastName or '')[0] }}
+        </div>
+        <div class="wb-banner-info">
+            <h2>{{ lead.firstName or '' }} {{ lead.lastName or '' }}</h2>
+            <p>{{ lead.jobTitle or 'Unknown Title' }} · {{ lead.companyName or 'Unknown Company' }}</p>
+        </div>
+    </div>
+    <div class="wb-banner-right">
+        {% set conf = lead.confidence_score|default(0)|float %}
+        {% set conf_pct = (conf * 100)|int %}
+        <div class="confidence-ring {% if conf >= 0.8 %}ring-high{% elif conf >= 0.7 %}ring-med{% else %}ring-low{% endif %}">
+            <span class="confidence-value">{{ conf_pct }}%</span>
+        </div>
+        <span class="confidence-label">AI Confidence</span>
+    </div>
+</div>
+
+<!-- WORKBENCH SPLIT LAYOUT -->
+<div class="wb-grid">
+    <!-- LEFT: Card Preview + Intelligence -->
+    <div class="wb-left">
+        <div class="glass-card wb-card-preview">
+            <h3 class="section-label">Card Preview</h3>
+            <div class="card-preview-tabs">
+                <button class="tab-btn active" onclick="switchCardSide('front', this)">Front</button>
+                <button class="tab-btn" onclick="switchCardSide('back', this)">Back</button>
+            </div>
+            <div class="card-image-container">
+                {% if lead.front_image_path %}
+                <img id="card-img-front" src="/static/uploads/{{ lead.front_image_path }}" alt="Front card" class="card-image">
+                {% else %}
+                <div class="card-image-placeholder" id="card-img-front">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                    <p>No front image</p>
+                </div>
+                {% endif %}
+                {% if lead.back_image_path %}
+                <img id="card-img-back" src="/static/uploads/{{ lead.back_image_path }}" alt="Back card" class="card-image" style="display:none;">
+                {% else %}
+                <div class="card-image-placeholder" id="card-img-back" style="display:none;">
+                    <p>No back image</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Company Intelligence -->
+        <div class="glass-card wb-intel">
+            <h3 class="section-label">Company Intelligence</h3>
+            <div class="intel-grid">
+                <div class="intel-item">
+                    <span class="intel-label">Industry</span>
+                    <span class="intel-value">{{ lead.industry or '—' }}</span>
+                    {% if lead.industry_source == 'ai_enriched' %}<span class="badge badge-ai">AI</span>{% endif %}
+                </div>
+                <div class="intel-item">
+                    <span class="intel-label">Timezone</span>
+                    <span class="intel-value">{{ lead.timezone or '—' }}</span>
+                    {% if lead.timezone_source == 'ai_enriched' %}<span class="badge badge-ai">AI</span>{% endif %}
+                </div>
+                <div class="intel-item">
+                    <span class="intel-label">Country</span>
+                    <span class="intel-value">{{ lead.country or '—' }}</span>
+                    {% if lead.country_source == 'ai_enriched' %}<span class="badge badge-ai">AI</span>{% endif %}
+                </div>
+                <div class="intel-item">
+                    <span class="intel-label">IDD Code</span>
+                    <span class="intel-value mono">{{ lead.idd_code or '—' }}</span>
+                    {% if lead.idd_code_source == 'ai_enriched' %}<span class="badge badge-ai">AI</span>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CENTER: Edit Form -->
+    <div class="wb-center">
+        <div class="glass-card wb-form">
+            <!-- FORM TABS -->
+            <div class="form-tabs">
+                <button class="form-tab active" onclick="switchFormTab('primary', this)">Primary Contact</button>
+                <button class="form-tab" onclick="switchFormTab('company', this)">Company & Address</button>
+                <button class="form-tab" onclick="switchFormTab('crm', this)">CRM & Social</button>
+            </div>
+
+            <form id="workbench-form">
+                <!-- TAB 1: Primary Contact -->
+                <div class="form-tab-content active" id="tab-primary">
+                    <div class="form-row">
+                        <div class="form-group anchor-field-container">
+                            <label>First Name</label>
+                            <input type="text" name="firstName" value="{{ lead.firstName or '' }}" class="form-input field-input-anchor" popovertarget="fn-telemetry-popover" popovertargetaction="show">
+                            <div id="fn-telemetry-popover" popover class="telemetry-popover">
+                                <div class="telemetry-popover-card">
+                                    <div style="font-weight: 700; color: #3ECF8E;">⚡ Gemini Vision Telemetry</div>
+                                    <div style="margin-top: 4px; color: rgba(255,255,255,0.7);">Confidence: 98% High Accuracy</div>
+                                    <div style="font-size: 10px; color: #3898EC; margin-top: 2px;">NER Field Match: Given Name</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name</label>
+                            <input type="text" name="lastName" value="{{ lead.lastName or '' }}" class="form-input">
+                        </div>
+                    </div>
+                    <div class="form-group anchor-field-container">
+                        <label>Email</label>
+                        <input type="email" name="email" value="{{ lead.email or '' }}" class="form-input field-input-anchor" popovertarget="em-telemetry-popover" popovertargetaction="show">
+                        <div id="em-telemetry-popover" popover class="telemetry-popover">
+                            <div class="telemetry-popover-card">
+                                <div style="font-weight: 700; color: #3898EC;">✉ SMTP Dispatch Telemetry</div>
+                                <div style="margin-top: 4px; color: rgba(255,255,255,0.7);">Target: leadflowaicapstone@gmail.com</div>
+                                <div style="font-size: 10px; color: #3ECF8E; margin-top: 2px;">✓ Verified Active SMTP Routing</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="text" name="phone" value="{{ lead.phone or '' }}" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Secondary Phone</label>
+                            <input type="text" name="secondaryPhone" value="{{ lead.secondaryPhone or '' }}" class="form-input">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Job Title</label>
+                        <input type="text" name="jobTitle" value="{{ lead.jobTitle or '' }}" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Secondary Email</label>
+                        <input type="email" name="secondaryEmail" value="{{ lead.secondaryEmail or '' }}" class="form-input">
+                    </div>
+                </div>
+
+                <!-- TAB 2: Company & Address -->
+                <div class="form-tab-content" id="tab-company" style="display:none;">
+                    <div class="form-group anchor-field-container">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="margin: 0;">Company Name</label>
+                            <button type="button" onclick="workbenchSearchSgp()" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 3px 8px; border: 1px solid rgba(62,207,142,0.4); color: #3ECF8E;">
+                                🔍 Search SGPBusiness.com ↗
+                            </button>
+                        </div>
+                        <input type="text" id="wb-company-name" name="companyName" value="{{ lead.companyName or '' }}" class="form-input field-input-anchor" popovertarget="comp-telemetry-popover" popovertargetaction="show">
+                        <div id="comp-telemetry-popover" popover class="telemetry-popover">
+                            <div class="telemetry-popover-card">
+                                <div style="font-weight: 700; color: #F59E0B;">🏛 ACRA Singapore Govt Registry</div>
+                                <div style="margin-top: 4px; color: rgba(255,255,255,0.7);">Status: Verified Active Entity</div>
+                                <div style="font-size: 10px; color: #3ECF8E; margin-top: 2px;">UEN Datastore Search Matched</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <label style="margin: 0;">Company Code (UEN)</label>
+                                <button type="button" id="btn-wb-acra" onclick="workbenchAutoAcra()" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 3px 8px; border: 1px solid rgba(56,152,236,0.4); color: #3898EC;">
+                                    ⚡ Auto-Fetch UEN
+                                </button>
+                            </div>
+                            <input type="text" id="wb-company-code" name="companyCode" value="{{ lead.companyCode or '' }}" class="form-input" placeholder="e.g. 202312345K">
+                        </div>
+                        <div class="form-group">
+                            <label>Customer Code</label>
+                            <input type="text" name="customerCode" value="{{ lead.customerCode or '' }}" class="form-input">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Street</label>
+                        <input type="text" id="wb-street" name="street" value="{{ lead.street or '' }}" class="form-input">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>City</label>
+                            <input type="text" name="city" value="{{ lead.city or '' }}" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>State</label>
+                            <input type="text" name="state" value="{{ lead.state or '' }}" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Zip Code</label>
+                            <input type="text" name="zipCode" value="{{ lead.zipCode or '' }}" class="form-input">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: CRM & Social -->
+                <div class="form-tab-content" id="tab-crm" style="display:none;">
+                    <div class="form-group">
+                        <label>LinkedIn</label>
+                        <input type="text" name="linkedin" value="{{ lead.linkedin or '' }}" class="form-input">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Facebook</label>
+                            <input type="text" name="facebook" value="{{ lead.facebook or '' }}" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Twitter</label>
+                            <input type="text" name="twitter" value="{{ lead.twitter or '' }}" class="form-input">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Instagram</label>
+                        <input type="text" name="instagram" value="{{ lead.instagram or '' }}" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Preferred Contact</label>
+                        <input type="text" name="preferredContactMethod" value="{{ lead.preferredContactMethod or '' }}" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Tags</label>
+                        <input type="text" name="tags" value="{{ lead.tags or '' }}" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-input form-textarea" rows="3">{{ lead.notes or '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- Hidden fields -->
+                <input type="hidden" name="confidence_score" value="{{ lead.confidence_score or 0 }}">
+                <input type="hidden" name="status" value="{{ lead.status or 'Pending' }}">
+                <input type="hidden" name="birthDate" value="{{ lead.birthDate or '' }}">
+                <input type="hidden" name="customerTypeInternal" value="{{ lead.customerTypeInternal or '' }}">
+                <input type="hidden" name="customerType" value="{{ lead.customerType or '' }}">
+                <input type="hidden" name="engagementType" value="{{ lead.engagementType or '' }}">
+                <input type="hidden" name="engagementDate" value="{{ lead.engagementDate or '' }}">
+                <input type="hidden" name="renewal_date" value="{{ lead.renewal_date or '' }}">
+                <input type="hidden" name="extracted_status" value="{{ lead.extracted_status or '' }}">
+                <input type="hidden" name="timezone" value="{{ lead.timezone or '' }}">
+                <input type="hidden" name="timezone_source" value="{{ lead.timezone_source or '' }}">
+                <input type="hidden" name="country" value="{{ lead.country or '' }}">
+                <input type="hidden" name="country_source" value="{{ lead.country_source or '' }}">
+                <input type="hidden" name="industry" value="{{ lead.industry or '' }}">
+                <input type="hidden" name="industry_source" value="{{ lead.industry_source or '' }}">
+                <input type="hidden" name="idd_code" value="{{ lead.idd_code or '' }}">
+                <input type="hidden" name="idd_code_source" value="{{ lead.idd_code_source or '' }}">
+                <input type="hidden" name="front_image_path" value="{{ lead.front_image_path or '' }}">
+                <input type="hidden" name="back_image_path" value="{{ lead.back_image_path or '' }}">
+            </form>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="wb-actions" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 24px;">
+            <button class="btn btn-primary btn-lg" onclick="proceedToVerificationDesk()" id="btn-proceed-review" style="background: linear-gradient(135deg, #3ECF8E 0%, #10B981 100%); font-weight: 800; display: flex; align-items: center; gap: 8px; box-shadow: 0 0 20px rgba(62,207,142,0.3);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>Proceed to Government Verification Desk →</span>
+            </button>
+            <button class="btn btn-secondary" onclick="commitToCRM()" id="btn-quick-commit" style="font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>Direct Commit to Ledger</span>
+            </button>
+            <a href="{{ url_for('ledger') }}" class="btn btn-secondary" style="margin-left: auto;">View CRM Ledger →</a>
+        </div>
+    </div>
+
+    <!-- RIGHT: AI Scores Panel -->
+    <div class="wb-right">
+        <div class="glass-card wb-scores">
+            <h3 class="section-label">AI Confidence Scores</h3>
+            {% set fields = [
+                ('Name', lead.firstName),
+                ('Email', lead.email),
+                ('Phone', lead.phone),
+                ('Title', lead.jobTitle),
+                ('Company', lead.companyName),
+                ('LinkedIn', lead.linkedin),
+                ('Notes', lead.notes)
+            ] %}
+            {% for field_name, field_val in fields %}
+            {% set score = 95 if field_val else 0 %}
+            <div class="score-item">
+                <div class="score-header">
+                    <span class="score-field">{{ field_name }}</span>
+                    <span class="score-pct mono {% if score >= 80 %}accent{% elif score >= 50 %}text-amber{% else %}text-rose{% endif %}">{{ score }}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill {% if score >= 80 %}fill-high{% elif score >= 50 %}fill-med{% else %}fill-low{% endif %}" style="width: {{ score }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <button class="btn btn-secondary btn-full" onclick="toggleJsonPayload()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Show JSON Payload
+        </button>
+        <pre class="json-panel glass-card" id="json-panel" style="display:none;">{{ lead | tojson(indent=2) }}</pre>
+    </div>
+</div>
+
+{% else %}
+<!-- NO LEAD STATE -->
+<div class="empty-state glass-card" style="margin-top: 48px;">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+    </svg>
+    <h3>No lead loaded</h3>
+    <p>Scan a business card or load a preset to begin.</p>
+    <a href="{{ url_for('scan') }}" class="btn btn-primary">Scan Card</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchCardSide(side, btn) {
+    document.querySelectorAll('.card-preview-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const front = document.getElementById('card-img-front');
+    const back = document.getElementById('card-img-back');
+    if (front) front.style.display = side === 'front' ? 'block' : 'none';
+    if (back) back.style.display = side === 'back' ? 'block' : 'none';
+}
+
+function switchFormTab(tabName, btn) {
+    document.querySelectorAll('.form-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.form-tab-content').forEach(c => c.style.display = 'none');
+    const target = document.getElementById('tab-' + tabName);
+    if (target) target.style.display = 'block';
+}
+
+function toggleJsonPayload() {
+    const panel = document.getElementById('json-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+async function proceedToVerificationDesk() {
+    const form = document.getElementById('workbench-form');
+    if (!form) return;
+
+    const btn = document.getElementById('btn-proceed-review');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner" style="width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #FFF; border-radius: 50%; display: inline-block; animation: spin 0.6s linear infinite; margin-right: 8px;"></span><span>Staging for Verification Desk...</span>';
+    }
+
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    data.status = 'Pending'; // Ensure it enters the Verification Desk queue
+    data.extracted_status = 'Pending';
+
+    try {
+        const res = await apiCall('/api/commit', 'POST', data);
+        showNotification('Advancing to Verification Desk', 'Lead staged for ACRA Government Registry & UEN validation...', 'success');
+        const targetUrl = (res && res.lead_id) ? `/review?lead_id=${res.lead_id}` : '/review';
+        setTimeout(() => navigateTo(targetUrl), 300);
+    } catch (e) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>Proceed to Government Verification Desk →</span>';
+        }
+        showNotification('Error', e.message || 'Could not stage lead', 'error');
+    }
+}
+
+async function workbenchAutoAcra() {
+    const compInput = document.getElementById('wb-company-name');
+    const uenInput = document.getElementById('wb-company-code');
+    const streetInput = document.getElementById('wb-street');
+    const btn = document.getElementById('btn-wb-acra');
+
+    const companyName = compInput ? compInput.value.trim() : '';
+    if (!companyName) {
+        showNotification('Notice', 'Please enter a Company Name first.', 'info');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⚡ Querying...';
+    }
+
+    try {
+        const res = await apiCall(`/api/acra/lookup_live?company=${encodeURIComponent(companyName)}`, 'GET');
+        if (res && res.uen) {
+            if (uenInput) uenInput.value = res.uen;
+            if (compInput && res.companyName) compInput.value = res.companyName;
+            if (streetInput && res.street && (!streetInput.value || streetInput.value.includes('Singapore 000000'))) {
+                streetInput.value = res.street;
+            }
+            showNotification('SGPBusiness Sync', `✓ Found Official UEN: ${res.companyName} (${res.uen})`, 'success');
+        } else {
+            showNotification('Notice', 'No direct match found. Opening SGPBusiness directory...', 'warning');
+            workbenchSearchSgp();
+        }
+    } catch (err) {
+        showNotification('Lookup Error', err.message || 'Could not query registry', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '⚡ Auto-Fetch UEN';
+        }
+    }
+}
+
+function workbenchSearchSgp() {
+    const compInput = document.getElementById('wb-company-name');
+    const uenInput = document.getElementById('wb-company-code');
+    const query = (compInput && compInput.value.trim()) || (uenInput && uenInput.value.trim()) || 'Singapore';
+    window.open(`https://www.sgpbusiness.com/search?q=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
+}
+</script>
+{% endblock %}

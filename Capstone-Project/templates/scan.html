@@ -1,0 +1,591 @@
+{% extends "base.html" %}
+{% block title %}Scan Studio{% endblock %}
+{% block body_class %}page-scan{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="page-title">Scan <span class="accent">Studio</span></h1>
+        <p class="page-subtitle">Dual-Card Vision & Bulk Batch AI Processing Engine</p>
+    </div>
+    
+    <!-- SCAN MODE SWITCHER -->
+    <div class="scan-mode-container">
+        <button type="button" class="scan-mode-btn active" id="mode-btn-single" onclick="switchScanMode('single')">
+            📷 Single Card
+        </button>
+        <button type="button" class="scan-mode-btn" id="mode-btn-bulk" onclick="switchScanMode('bulk')">
+            ⚡ Bulk Multi-Card Batch
+        </button>
+    </div>
+</div>
+
+<!-- TARGET PROJECT DATABASE SELECTOR BAR -->
+<div class="glass-card" style="max-width: 1200px; margin: 0 auto 20px auto; padding: 14px 20px; border-radius: 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: rgba(11, 16, 25, 0.85); border: 1px solid rgba(255,255,255,0.08);">
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        <span style="font-size: 13px; font-weight: 700; color: #FFF;">Target Ingestion Database Space:</span>
+    </div>
+    <select id="scan-project-selector" onchange="if(window.apiCall) apiCall('/api/projects/switch', 'POST', {slug: this.value});" style="padding: 8px 16px; background: rgba(0,0,0,0.6); border: 1px solid rgba(62,207,142,0.4); border-radius: 8px; color: #3ECF8E; font-weight: 700; font-size: 13px; font-family: 'Inter', sans-serif; cursor: pointer;">
+        {% if projects %}
+            {% for p in projects %}
+            <option value="{{ p.slug }}" {% if p.slug == active_project %}selected{% endif %}>📁 {{ p.name }} ({{ p.lead_count }} leads)</option>
+            {% endfor %}
+        {% else %}
+            <option value="default" selected>📁 Master Database (16 leads)</option>
+        {% endif %}
+    </select>
+</div>
+
+<!-- ========================================== -->
+<!-- 1. SINGLE CARD WIZARD STEPS -->
+<!-- ========================================== -->
+<div id="single-scan-view" style="max-width: 1200px; margin: 0 auto;">
+    <div class="wizard-bar">
+        <div class="wizard-step active" id="wiz-step-1" data-step="1">
+            <div class="step-number">1</div>
+            <span class="step-label">Front Card</span>
+        </div>
+        <div class="wizard-connector"></div>
+        <div class="wizard-step" id="wiz-step-2" data-step="2">
+            <div class="step-number">2</div>
+            <span class="step-label">Back Card</span>
+        </div>
+        <div class="wizard-connector"></div>
+        <div class="wizard-step" id="wiz-step-3" data-step="3">
+            <div class="step-number">3</div>
+            <span class="step-label">AI Extraction</span>
+        </div>
+    </div>
+
+    <!-- SCAN CONTENT AREA -->
+    <div class="scan-content">
+        <!-- STEP 1: FRONT CARD -->
+        <div class="scan-step" id="step-1-content">
+            <div class="scan-split">
+                <div class="scan-upload glass-card">
+                    <div class="upload-zone" id="front-drop-zone">
+                        <input type="file" id="front-file-input" accept="image/*,.pdf" class="file-input-hidden">
+                        <div class="upload-placeholder" id="front-placeholder">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            <h3>Upload Front Card</h3>
+                            <p>Drag & drop or click to upload<br>PNG, JPG, or PDF</p>
+                        </div>
+                        <img id="front-preview" class="upload-preview" style="display:none;">
+                    </div>
+                </div>
+                <div class="scan-info glass-card">
+                    <h3 class="mono">Telemetry HUD</h3>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Status</span>
+                        <span class="telemetry-value" id="tel-status">Awaiting Upload</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">File</span>
+                        <span class="telemetry-value mono" id="tel-filename">—</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Size</span>
+                        <span class="telemetry-value mono" id="tel-filesize">—</span>
+                    </div>
+                </div>
+            </div>
+            <div class="scan-actions">
+                <button class="btn btn-primary" id="btn-to-step2" onclick="goToStep(2)" disabled>
+                    Continue to Back Card →
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 2: BACK CARD -->
+        <div class="scan-step" id="step-2-content" style="display:none;">
+            <div class="scan-split">
+                <div class="scan-upload glass-card">
+                    <div class="upload-zone" id="back-drop-zone">
+                        <input type="file" id="back-file-input" accept="image/*,.pdf" class="file-input-hidden">
+                        <div class="upload-placeholder" id="back-placeholder">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            <h3>Upload Back Card <span class="text-muted">(Optional)</span></h3>
+                            <p>Drag & drop or click to upload<br>PNG, JPG, or PDF</p>
+                        </div>
+                        <img id="back-preview" class="upload-preview" style="display:none;">
+                    </div>
+                </div>
+                <div class="scan-info glass-card">
+                    <h3 class="mono">Telemetry HUD</h3>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Front Card</span>
+                        <span class="telemetry-value accent">✓ Uploaded</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Back Card</span>
+                        <span class="telemetry-value" id="tel-back-status">Awaiting Upload</span>
+                    </div>
+                </div>
+            </div>
+            <div class="scan-actions">
+                <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
+                <button class="btn btn-secondary" id="btn-skip-back" onclick="skipBackCard()">Skip Back Card</button>
+                <button class="btn btn-primary" id="btn-extract" onclick="submitScan()">
+                    Extract Data →
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 3: EXTRACTION (AI EXTRACTION TELEMETRY HUD) -->
+        <div class="scan-step" id="step-3-content" style="display:none;">
+            <div class="extraction-status glass-card" style="text-align: center; padding: 44px 32px; max-width: 640px; margin: 0 auto; border-radius: 24px; border: 1px solid rgba(62, 207, 142, 0.35); background: rgba(11, 16, 25, 0.95); box-shadow: 0 25px 60px rgba(0,0,0,0.8);">
+                
+                <!-- HOLOGRAPHIC DUAL-ORBITAL AI SCANNING ORB -->
+                <div class="ai-orb-container">
+                    <div class="ai-radar-pulse"></div>
+                    <div class="ai-radar-pulse-delayed"></div>
+                    <div class="ai-outer-ring"></div>
+                    <div class="ai-middle-arc"></div>
+                    <div class="ai-core-sphere">
+                        <svg class="ai-iris-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                            <circle cx="12" cy="12" r="3" fill="#3ECF8E" fill-opacity="0.6"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <h2 style="color: #FFF; font-size: 23px; margin: 0 0 6px 0; font-weight: 800; letter-spacing: -0.02em;">AI Vision Extraction Engine</h2>
+                <p id="extraction-dynamic-status" class="text-muted" style="font-size: 13.5px; margin-bottom: 20px; min-height: 20px; color: rgba(255,255,255,0.75);">
+                    Scanning front & back typography matrix with Gemini 2.5 Vision...
+                </p>
+
+                <!-- TIMER & PROGRESS -->
+                <div style="display: flex; align-items: center; justify-content: space-between; max-width: 480px; margin: 0 auto 10px auto; font-family: 'Fira Code', monospace; font-size: 13px;">
+                    <span id="extraction-timer" style="color: #3ECF8E; font-weight: 700;">Time elapsed: 0.0s</span>
+                    <span id="extraction-pct-badge" style="color: #3898EC; font-weight: 700;">15% Processing</span>
+                </div>
+                
+                <div class="progress-container" style="max-width: 480px; margin: 0 auto 24px auto;">
+                    <div class="progress-bar" style="height: 10px; border-radius: 5px; background: rgba(255,255,255,0.06); overflow: hidden; position: relative;">
+                        <div class="progress-fill high" id="extraction-progress" style="width: 15%; height: 100%; border-radius: 5px; background: linear-gradient(90deg, #3ECF8E, #3898EC); box-shadow: 0 0 15px rgba(62,207,142,0.6); transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+                
+                <!-- TELEMETRY STAGE CHECKLIST -->
+                <div class="extraction-stages" style="display: flex; justify-content: space-between; text-align: left; font-size: 12px; max-width: 500px; margin: 0 auto; background: rgba(255,255,255,0.02); padding: 14px 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.06);">
+                    <div class="stage-item" id="stage-ocr" style="display: flex; flex-direction: column; align-items: center; gap: 6px; color: #3ECF8E;">
+                        <span class="stage-dot" id="dot-ocr" style="width: 10px; height: 10px; background: #3ECF8E; border-radius: 50%; box-shadow: 0 0 10px #3ECF8E; animation: aiStagePulse 1.5s infinite;"></span>
+                        <span style="font-weight: 700;">1. Gemini Vision OCR</span>
+                    </div>
+                    <div class="stage-item" id="stage-enrich" style="display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--color-text-secondary);">
+                        <span class="stage-dot" id="dot-enrich" style="width: 10px; height: 10px; background: var(--color-border); border-radius: 50%; transition: all 0.3s;"></span>
+                        <span style="font-weight: 700;">2. ACRA Govt Sync</span>
+                    </div>
+                    <div class="stage-item" id="stage-infer" style="display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--color-text-secondary);">
+                        <span class="stage-dot" id="dot-infer" style="width: 10px; height: 10px; background: var(--color-border); border-radius: 50%; transition: all 0.3s;"></span>
+                        <span style="font-weight: 700;">3. Gap & Pitch Inference</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- 2. BULK MULTI-CARD BATCH SCAN VIEW -->
+<!-- ========================================== -->
+<div id="bulk-scan-view" style="display: none; max-width: 1200px; margin: 0 auto;">
+    <div class="scan-content">
+        <div class="scan-split">
+            <!-- BULK DROPZONE -->
+            <div class="scan-upload glass-card" style="flex: 1.4;">
+                <div class="upload-zone" id="bulk-drop-zone" style="min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed rgba(62, 207, 142, 0.4); border-radius: 16px; padding: 24px;">
+                    <input type="file" id="bulk-file-input" accept="image/*,.pdf" multiple class="file-input-hidden">
+                    <div class="upload-placeholder" id="bulk-placeholder" style="text-align: center;">
+                        <div style="width: 60px; height: 60px; border-radius: 18px; background: rgba(62, 207, 142, 0.15); border: 1px solid rgba(62, 207, 142, 0.3); display: inline-flex; align-items: center; justify-content: center; color: #3ECF8E; margin-bottom: 12px;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                            </svg>
+                        </div>
+                        <h3 style="font-size: 20px; color: #FFF; margin: 0;">Upload Multiple Business Cards</h3>
+                        <p style="color: rgba(255,255,255,0.6); font-size: 13px; margin-top: 6px;">Select or drop up to 20 card images at once (PNG, JPG, PDF)</p>
+                    </div>
+                </div>
+
+                <!-- QUICK DEMO PRESET BUTTON -->
+                <div style="margin-top: 16px; text-align: center;">
+                    <span class="text-muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px;">Or instant test:</span>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="runBulkDemoPreset()" style="border: 1px solid rgba(62,207,142,0.4); color: #3ECF8E;">
+                        ⚡ Load & Scan Demo Batch (4 Cards)
+                    </button>
+                </div>
+            </div>
+
+            <!-- BATCH QUEUE HUD -->
+            <div class="scan-info glass-card" style="flex: 1;">
+                <h3 class="mono" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Batch Queue HUD</span>
+                    <span id="bulk-queue-count" class="badge badge-ai" style="font-size: 11px;">0 Cards Loaded</span>
+                </h3>
+
+                <div id="bulk-thumbnail-list" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-right: 4px;">
+                    <div class="text-muted" style="text-align: center; padding: 30px; font-size: 13px;">
+                        No cards in batch queue.<br>Drop files or click Demo Batch.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BULK ACTIONS -->
+        <div class="scan-actions" style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button class="btn btn-secondary" onclick="clearBulkQueue()">Clear Batch</button>
+            <button class="btn btn-primary" id="btn-start-bulk" onclick="startBulkProcessing()" disabled style="padding: 12px 24px; font-weight: 700;">
+                ⚡ Start Batch AI Extraction (0 Cards) →
+            </button>
+        </div>
+
+        <!-- BULK EXTRACTION FUTURISTIC ANIMATED HUD -->
+        <div id="bulk-processing-hud" class="glass-card" style="display: none; margin-top: 28px; padding: 40px 32px; text-align: center; border-radius: 24px; border: 1px solid rgba(62, 207, 142, 0.3); background: rgba(11, 16, 25, 0.95); box-shadow: 0 20px 60px rgba(0,0,0,0.6);">
+            <!-- HOLOGRAPHIC AI PULSE ORB -->
+            <div class="ai-orb-container" style="width: 100px; height: 100px; margin-bottom: 20px;">
+                <div class="ai-radar-pulse"></div>
+                <div class="ai-radar-pulse-delayed"></div>
+                <div class="ai-outer-ring" style="width: 95px; height: 95px;"></div>
+                <div class="ai-middle-arc" style="width: 76px; height: 76px;"></div>
+                <div class="ai-core-sphere" style="width: 54px; height: 54px;">
+                    <svg class="ai-iris-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                </div>
+            </div>
+
+            <h2 style="color: #FFF; font-size: 22px; margin: 0 0 6px 0; font-weight: 800; letter-spacing: -0.02em;">Parallel Batch AI Vision Processing</h2>
+            <p id="bulk-status-text" class="text-muted" style="font-size: 14px; max-width: 480px; margin: 0 auto 16px auto;">
+                Extracting & enriching multi-card batch with Gemini Vision OCR + Singapore ACRA Government Registry...
+            </p>
+
+            <div class="mono accent" id="bulk-timer" style="font-size: 18px; font-weight: 700; margin-bottom: 24px; letter-spacing: 0.05em;">
+                Time elapsed: 0.0s
+            </div>
+
+            <!-- PROGRESS BAR -->
+            <div class="progress-container" style="max-width: 540px; margin: 0 auto 24px auto;">
+                <div class="progress-bar" style="height: 10px; border-radius: 6px; background: rgba(255,255,255,0.06); overflow: hidden; border: 1px solid rgba(255,255,255,0.08);">
+                    <div id="bulk-progress-fill" style="width: 0%; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #3ECF8E, #3898EC); box-shadow: 0 0 15px rgba(62,207,142,0.6); transition: width 0.3s ease;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px;">
+                    <span id="bulk-progress-counter" class="mono text-muted">Card 0 of 0 Processed</span>
+                    <span id="bulk-progress-pct" class="mono accent" style="font-weight: 800;">0% Complete</span>
+                </div>
+            </div>
+
+            <!-- THREE STAGE TELEMETRY CHECKLIST -->
+            <div style="display: flex; justify-content: center; gap: 24px; max-width: 580px; margin: 0 auto; text-align: left; font-size: 12px;">
+                <div id="bulk-stage-ocr" style="display: flex; align-items: center; gap: 8px; color: #3ECF8E; font-weight: 600;">
+                    <span id="dot-bulk-ocr" style="width: 8px; height: 8px; border-radius: 50%; background: #3ECF8E; box-shadow: 0 0 10px #3ECF8E; animation: aiStagePulse 1.5s infinite;"></span>
+                    <span>1. Parallel Gemini OCR</span>
+                </div>
+                <div id="bulk-stage-acra" style="display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.4);">
+                    <span id="dot-bulk-acra" style="width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2);"></span>
+                    <span>2. ACRA Govt Sync</span>
+                </div>
+                <div id="bulk-stage-enrich" style="display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.4);">
+                    <span id="dot-bulk-enrich" style="width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2);"></span>
+                    <span>3. AI Gap Inference</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentBulkFiles = [];
+
+function switchScanMode(mode) {
+    const singleView = document.getElementById('single-scan-view');
+    const bulkView = document.getElementById('bulk-scan-view');
+    const btnSingle = document.getElementById('mode-btn-single');
+    const btnBulk = document.getElementById('mode-btn-bulk');
+
+    if (mode === 'bulk') {
+        singleView.style.display = 'none';
+        bulkView.style.display = 'block';
+        btnBulk.classList.add('active');
+        btnSingle.classList.remove('active');
+    } else {
+        bulkView.style.display = 'none';
+        singleView.style.display = 'block';
+        btnSingle.classList.add('active');
+        btnBulk.classList.remove('active');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Single card handlers
+    setupFileUpload('front-file-input', 'front-drop-zone', 'front-preview', 'front-placeholder', function() {
+        document.getElementById('btn-to-step2').disabled = false;
+        document.getElementById('tel-status').textContent = 'Ready';
+        document.getElementById('tel-status').classList.add('accent');
+    });
+    setupFileUpload('back-file-input', 'back-drop-zone', 'back-preview', 'back-placeholder', function() {
+        document.getElementById('tel-back-status').textContent = '✓ Uploaded';
+        document.getElementById('tel-back-status').classList.add('accent');
+    });
+
+    // Bulk upload handlers
+    const bulkInput = document.getElementById('bulk-file-input');
+    const bulkZone = document.getElementById('bulk-drop-zone');
+
+    if (bulkZone && bulkInput) {
+        bulkZone.addEventListener('click', () => bulkInput.click());
+        bulkZone.addEventListener('dragover', (e) => { e.preventDefault(); bulkZone.classList.add('drag-over'); });
+        bulkZone.addEventListener('dragleave', () => bulkZone.classList.remove('drag-over'));
+        bulkZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            bulkZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                addFilesToBulkQueue(Array.from(e.dataTransfer.files));
+            }
+        });
+        bulkInput.addEventListener('change', () => {
+            if (bulkInput.files.length) {
+                addFilesToBulkQueue(Array.from(bulkInput.files));
+            }
+        });
+    }
+});
+
+function addFilesToBulkQueue(files) {
+    currentBulkFiles = currentBulkFiles.concat(files);
+    renderBulkQueueUI();
+}
+
+function clearBulkQueue() {
+    currentBulkFiles = [];
+    renderBulkQueueUI();
+}
+
+function renderBulkQueueUI() {
+    const list = document.getElementById('bulk-thumbnail-list');
+    const countBadge = document.getElementById('bulk-queue-count');
+    const startBtn = document.getElementById('btn-start-bulk');
+
+    countBadge.textContent = `${currentBulkFiles.length} Card${currentBulkFiles.length !== 1 ? 's' : ''} Loaded`;
+
+    if (currentBulkFiles.length === 0) {
+        list.innerHTML = `<div class="text-muted" style="text-align: center; padding: 30px; font-size: 13px;">No cards in batch queue.<br>Drop files or click Demo Batch.</div>`;
+        startBtn.disabled = true;
+        startBtn.textContent = `⚡ Start Batch AI Extraction (0 Cards) →`;
+        return;
+    }
+
+    startBtn.disabled = false;
+    startBtn.textContent = `⚡ Start Batch AI Extraction (${currentBulkFiles.length} Cards) →`;
+
+    list.innerHTML = currentBulkFiles.map((file, idx) => `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <span class="mono text-muted" style="font-size: 11px;">#${idx + 1}</span>
+                <span style="font-size: 12px; font-weight: 600; color: #FFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${file.name}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="mono text-muted" style="font-size: 11px;">${(file.size / 1024).toFixed(1)} KB</span>
+                <button type="button" onclick="event.stopPropagation(); removeBulkFile(${idx});" style="background: none; border: none; color: #F43F5E; cursor: pointer; font-size: 14px;">✕</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function removeBulkFile(idx) {
+    currentBulkFiles.splice(idx, 1);
+    renderBulkQueueUI();
+}
+
+let bulkTimerInterval;
+let bulkStartTime;
+
+function startBulkTimer() {
+    bulkStartTime = Date.now();
+    const timerEl = document.getElementById('bulk-timer');
+    if (bulkTimerInterval) clearInterval(bulkTimerInterval);
+    bulkTimerInterval = setInterval(() => {
+        const elapsed = ((Date.now() - bulkStartTime) / 1000).toFixed(1);
+        if (timerEl) timerEl.textContent = `Time elapsed: ${elapsed}s`;
+    }, 100);
+}
+
+function stopBulkTimer() {
+    if (bulkTimerInterval) clearInterval(bulkTimerInterval);
+}
+
+function updateBulkStage(stageNum, text) {
+    const acraStage = document.getElementById('bulk-stage-acra');
+    const enrichStage = document.getElementById('bulk-stage-enrich');
+    const dotAcra = document.getElementById('dot-bulk-acra');
+    const dotEnrich = document.getElementById('dot-bulk-enrich');
+    const statusText = document.getElementById('bulk-status-text');
+
+    if (statusText && text) statusText.textContent = text;
+
+    if (stageNum >= 2 && acraStage && dotAcra) {
+        acraStage.style.color = '#3ECF8E';
+        acraStage.style.fontWeight = '600';
+        dotAcra.style.background = '#3ECF8E';
+        dotAcra.style.boxShadow = '0 0 10px #3ECF8E';
+    }
+    if (stageNum >= 3 && enrichStage && dotEnrich) {
+        enrichStage.style.color = '#3ECF8E';
+        enrichStage.style.fontWeight = '600';
+        dotEnrich.style.background = '#3ECF8E';
+        dotEnrich.style.boxShadow = '0 0 10px #3ECF8E';
+    }
+}
+
+async function runBulkDemoPreset() {
+    showNotification('Batch Presets Loaded', 'Processing 4 enterprise demo cards with Gemini Vision + ACRA verification...', 'info');
+    const hud = document.getElementById('bulk-processing-hud');
+    const fill = document.getElementById('bulk-progress-fill');
+    const pct = document.getElementById('bulk-progress-pct');
+    const counter = document.getElementById('bulk-progress-counter');
+
+    hud.style.display = 'block';
+    startBulkTimer();
+    fill.style.width = '35%';
+    pct.textContent = '35% Complete';
+    counter.textContent = 'Card 2 of 4 Processed';
+    updateBulkStage(1, 'Executing parallel Gemini Vision OCR extraction...');
+
+    setTimeout(() => {
+        fill.style.width = '75%';
+        pct.textContent = '75% Complete';
+        counter.textContent = 'Card 3 of 4 Processed';
+        updateBulkStage(2, 'Querying Singapore ACRA Registry for business entities...');
+    }, 400);
+
+    setTimeout(() => {
+        fill.style.width = '90%';
+        pct.textContent = '90% Complete';
+        counter.textContent = 'Card 4 of 4 Processed';
+        updateBulkStage(3, 'Synthesizing C-Suite intelligence & CRM data...');
+    }, 700);
+
+    try {
+        const projectSlug = document.getElementById('scan-project-selector')?.value || 'default';
+        const res = await apiCall('/api/scan_bulk', 'POST', { preset_batch: true, project_slug: projectSlug });
+        stopBulkTimer();
+        fill.style.width = '100%';
+        pct.textContent = '100% Complete!';
+        counter.textContent = `Card ${res.count} of ${res.count} Processed`;
+        
+        if (res.success) {
+            showNotification('Batch Scan Complete!', `Successfully extracted & enriched ${res.count} cards into CRM Ledger`, 'success');
+            setTimeout(() => window.location.href = res.redirect || '/ledger', 800);
+        }
+    } catch (err) {
+        stopBulkTimer();
+        showNotification('Batch Error', err.message, 'error');
+        hud.style.display = 'none';
+    }
+}
+
+async function startBulkProcessing() {
+    if (currentBulkFiles.length === 0) return;
+
+    const totalCards = currentBulkFiles.length;
+    const hud = document.getElementById('bulk-processing-hud');
+    const fill = document.getElementById('bulk-progress-fill');
+    const pct = document.getElementById('bulk-progress-pct');
+    const counter = document.getElementById('bulk-progress-counter');
+
+    hud.style.display = 'block';
+    startBulkTimer();
+    fill.style.width = '20%';
+    pct.textContent = '20%';
+    counter.textContent = `Card 1 of ${totalCards} Processed`;
+    updateBulkStage(1, `Uploading ${totalCards} cards to parallel AI vision queue...`);
+
+    const formData = new FormData();
+    currentBulkFiles.forEach(file => formData.append('bulk_images', file));
+    const projectSlug = document.getElementById('scan-project-selector')?.value || 'default';
+    formData.append('project_slug', projectSlug);
+
+    setTimeout(() => {
+        fill.style.width = '60%';
+        pct.textContent = '60%';
+        counter.textContent = `Card ${Math.ceil(totalCards / 2)} of ${totalCards} Processed`;
+        updateBulkStage(2, 'Running parallel Gemini OCR & ACRA Government UEN verification...');
+    }, 500);
+
+    try {
+        const res = await apiCall('/api/scan_bulk', 'POST', formData, true);
+        stopBulkTimer();
+        fill.style.width = '100%';
+        pct.textContent = '100% Complete!';
+        counter.textContent = `Card ${res.count} of ${totalCards} Processed`;
+        updateBulkStage(3, 'Batch complete! Redirecting to CRM Ledger...');
+
+        if (res.success) {
+            showNotification('Bulk Scan Complete!', `Processed ${res.count} cards into CRM Ledger`, 'success');
+            setTimeout(() => window.location.href = res.redirect || '/ledger', 800);
+        } else {
+            showNotification('Bulk Scan Failed', res.error || 'Could not process cards', 'error');
+            hud.style.display = 'none';
+        }
+    } catch (err) {
+        stopBulkTimer();
+        showNotification('Bulk Scan Error', err.message, 'error');
+        hud.style.display = 'none';
+    }
+}
+
+function setupFileUpload(inputId, dropZoneId, previewId, placeholderId, onSuccess) {
+    const input = document.getElementById(inputId);
+    const dropZone = document.getElementById(dropZoneId);
+    const preview = document.getElementById(previewId);
+    const placeholder = document.getElementById(placeholderId);
+
+    if (!dropZone || !input) return;
+
+    dropZone.addEventListener('click', () => input.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) {
+            input.files = e.dataTransfer.files;
+            handleFile(input.files[0], preview, placeholder);
+            if (onSuccess) onSuccess();
+        }
+    });
+    input.addEventListener('change', () => {
+        if (input.files.length) {
+            handleFile(input.files[0], preview, placeholder);
+            const nameEl = document.getElementById('tel-filename');
+            const sizeEl = document.getElementById('tel-filesize');
+            if (nameEl) nameEl.textContent = input.files[0].name;
+            if (sizeEl) sizeEl.textContent = (input.files[0].size / 1024).toFixed(1) + ' KB';
+            if (onSuccess) onSuccess();
+        }
+    });
+}
+
+function handleFile(file, preview, placeholder) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        placeholder.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Record Detail{% endblock %}
+{% block body_class %}page-detail{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-left">
+        <a href="{{ url_for('ledger') }}" class="btn btn-secondary">← Back to Ledger</a>
+    </div>
+    <div class="topbar-right">
+        <button class="btn btn-danger" onclick="deleteRecord({{ lead.id }})">Delete Record</button>
+    </div>
+</div>
+
+<!-- RECORD DETAILS -->
+<div class="detail-grid">
+    <div class="glass-card detail-main">
+        <div class="detail-header">
+            <div class="wb-avatar" style="background: linear-gradient(135deg, #3ECF8E, #3898EC);">
+                {{ (lead.firstName or 'U')[0] }}{{ (lead.lastName or '')[0] }}
+            </div>
+            <div>
+                <h2>{{ lead.firstName }} {{ lead.lastName }}</h2>
+                <p class="text-muted">{{ lead.jobTitle or 'Executive' }} · {% if lead.companyName %}<a href="{{ url_for('project', company_name=lead.companyName) }}" style="color: #3898EC; font-weight: 600; text-decoration: underline;" title="View ACRA Company Profile & Team Roster">🏛 {{ lead.companyName }}</a>{% else %}Unknown Company{% endif %}</p>
+            </div>
+            <div class="detail-status" style="margin-left:auto; text-align:right;">
+                {% if lead.status == 'SYNCED' %}
+                <span class="badge badge-approved">Synced to CRM</span>
+                {% else %}
+                <span class="badge badge-pending">Pending Review</span>
+                {% endif %}
+                <p class="mono text-muted" style="margin-top: 8px;">ID-{{ "%04d"|format(lead.id) }}</p>
+            </div>
+        </div>
+        
+        <div class="detail-info-grid" style="margin-top: 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <div class="info-group">
+                <span class="info-label text-muted">Email</span>
+                <p class="info-val">{{ lead.email or '—' }}</p>
+            </div>
+            <div class="info-group">
+                <span class="info-label text-muted">Phone</span>
+                <p class="info-val">{{ lead.phone or '—' }}</p>
+            </div>
+            <div class="info-group">
+                <span class="info-label text-muted">Location</span>
+                <p class="info-val">{{ lead.city or '' }} {{ lead.state or '' }} {{ lead.country or '' }}</p>
+            </div>
+            <div class="info-group">
+                <span class="info-label text-muted">LinkedIn</span>
+                <p class="info-val">
+                    {% if lead.linkedin and lead.linkedin != '—' and lead.linkedin != '-' %}
+                    <a href="{% if lead.linkedin.startswith('http://') or lead.linkedin.startswith('https://') %}{{ lead.linkedin }}{% else %}https://{{ lead.linkedin }}{% endif %}" target="_blank" rel="noopener noreferrer" class="accent">{{ lead.linkedin }}</a>
+                    {% else %}
+                    —
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        
+        <div class="info-group" style="margin-top: 24px;">
+            <span class="info-label text-muted">Notes</span>
+            <p class="info-val" style="background: rgba(255,255,255,0.02); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                {{ lead.notes or 'No notes provided.' }}
+            </p>
+        </div>
+    </div>
+    
+    <div class="glass-card detail-side">
+        <h3 class="section-label">Card Images</h3>
+        {% if lead.front_image_path %}
+        <img src="/static/uploads/{{ lead.front_image_path|basename }}" alt="Front card" class="card-image" style="margin-bottom: 16px;">
+        {% endif %}
+        {% if lead.back_image_path %}
+        <img src="/static/uploads/{{ lead.back_image_path|basename }}" alt="Back card" class="card-image">
+        {% endif %}
+        {% if not lead.front_image_path and not lead.back_image_path %}
+        <p class="text-muted text-center" style="padding: 32px 0;">No images available</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

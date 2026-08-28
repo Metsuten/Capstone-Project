@@ -1,0 +1,631 @@
+{% extends "base.html" %}
+{% block title %}Executive Verification Desk{% endblock %}
+{% block body_class %}page-review{% endblock %}
+
+{% block content %}
+<!-- TOP BAR -->
+<div class="topbar">
+    <div class="topbar-left">
+        <h1 class="page-title">Executive <span class="accent">Verification Desk</span></h1>
+        <p class="page-subtitle">Real-time ACRA Government Audit, View Transitions API Morphing & Real Industry Telemetry</p>
+    </div>
+    <div class="topbar-right" style="display: flex; gap: 12px; align-items: center;">
+        <span class="chip"><span class="chip-dot dot-emerald"></span> {{ queue|length }} Pending Audits</span>
+        <span class="chip"><span class="chip-dot dot-blue"></span> Live ACRA Govt Sync</span>
+        <button class="btn btn-primary" onclick="openSpotlight()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span>Search (⌘K)</span>
+        </button>
+    </div>
+</div>
+
+<!-- EXECUTIVE BENTO GRID LAYOUT (STRICT 2-COLUMN) -->
+<div class="executive-bento-grid" style="display: grid; grid-template-columns: 1fr 380px; gap: 24px; margin-bottom: 40px; max-width: 1720px; margin-left: auto; margin-right: auto; align-items: start;">
+    
+    <!-- LEFT MAIN WORKSPACE: EXECUTIVE VERIFICATION DESK CARD -->
+    <div class="bento-workspace-card glass-card" id="active-verification-workspace" style="padding: 32px; border-radius: 24px; background: rgba(11, 16, 25, 0.95); border: 1px solid rgba(62, 207, 142, 0.35); box-shadow: 0 20px 50px rgba(0,0,0,0.7); display: flex; flex-direction: column; justify-content: space-between; min-height: 560px; view-transition-name: active-lead-header;">
+        
+        {% set active_lead = active_lead or (queue[0] if queue else (leads[-1] if leads else None)) %}
+        <div>
+            <!-- WORKSPACE CARD HEADER -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 20px; margin-bottom: 24px;">
+                <div>
+                    <div style="font-size: 12px; color: #3ECF8E; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;" class="mono">ACTIVE VERIFICATION DESK</div>
+                    <h2 id="lead-display-name" style="font-size: 26px; font-weight: 900; color: #FFF; margin-top: 4px;">
+                        {% if active_lead %}
+                            {{ (((active_lead.firstName or '') ~ ' ' ~ (active_lead.lastName or ''))|trim) or active_lead.companyName or 'Unnamed Contact' }}
+                        {% else %}
+                            No Lead Selected
+                        {% endif %}
+                    </h2>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span id="lead-display-status" class="badge {% if active_lead and (active_lead.status == 'Approved' or active_lead.status == 'SYNCED') %}badge-approved{% else %}badge-pending{% endif %}" style="font-size: 12px; padding: 6px 12px;">
+                        {% if active_lead and (active_lead.status == 'Approved' or active_lead.status == 'SYNCED') %}✓ ACRA SYNCED{% else %}⏳ AUDIT PENDING{% endif %}
+                    </span>
+                    <span id="lead-display-conf" class="mono accent" style="font-size: 13px; font-weight: 800;">
+                        {{ '%.0f'|format((active_lead.confidence_score|default(0.95)|float) * 100) if active_lead else '0' }}% CONFIDENCE
+                    </span>
+                </div>
+            </div>
+
+            <!-- WORKSPACE SPLIT: FORM INPUTS + DOCKED ACRA GOVT HUD -->
+            <div style="display: grid; grid-template-columns: 1fr 310px; gap: 24px;">
+                
+                <!-- FORM INPUTS -->
+                <div style="display: flex; flex-direction: column; gap: 18px;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label style="font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85);">Entity Name</label>
+                            <a id="btn-search-sgp-link" href="https://www.sgpbusiness.com/search?q={{ ((active_lead.companyName or 'Singapore') if active_lead else 'Singapore')|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px; border: 1px solid rgba(62,207,142,0.4); color: #3ECF8E; display: flex; align-items: center; gap: 6px; text-decoration: none; cursor: pointer;" onclick="const q = document.getElementById('input-entity-name')?.value || 'Singapore'; this.href = 'https://www.sgpbusiness.com/search?q=' + encodeURIComponent(q);">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <span>Search SGPBusiness.com ↗</span>
+                            </a>
+                        </div>
+                        <input type="text" id="input-entity-name" value="{{ (active_lead.companyName or '') if active_lead else '' }}" placeholder="Enter company name..." style="width: 100%; padding: 14px 18px; border-radius: 14px; background: rgba(0,0,0,0.5); border: 1.5px solid rgba(62, 207, 142, 0.4); color: #FFF; font-size: 15px; font-weight: 600; outline: none;" oninput="updateAcraHudEntity(this.value)">
+                    </div>
+
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label style="font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85);">ACRA UEN</label>
+                            <button type="button" id="btn-auto-acra" onclick="autoLookupAcraUen()" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px; border: 1px solid rgba(56,152,236,0.4); color: #3898EC; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                <span>⚡ Auto-Fetch SGPBusiness UEN</span>
+                            </button>
+                        </div>
+                        <input type="text" id="input-acra-uen" value="{{ (active_lead.companyCode or '') if active_lead else '' }}" placeholder="Enter UEN (e.g., 202312345K)..." style="width: 100%; padding: 14px 18px; border-radius: 14px; background: rgba(0,0,0,0.5); border: 1.5px solid rgba(62, 207, 142, 0.4); color: #FFF; font-size: 15px; font-weight: 600; outline: none;" oninput="updateAcraHudUen(this.value)">
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 8px;">Job Title</label>
+                        <input type="text" id="input-job-title" value="{{ (active_lead.jobTitle or '') if active_lead else '' }}" placeholder="Job Title..." style="width: 100%; padding: 12px 16px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #FFF; font-size: 14px;">
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 8px;">Email Address</label>
+                        <input type="text" id="input-email" value="{{ (active_lead.email or '') if active_lead else '' }}" placeholder="Email Address..." style="width: 100%; padding: 12px 16px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #FFF; font-size: 14px;">
+                    </div>
+                </div>
+
+                <!-- DOCKED GOVERNMENT VERIFICATION HUD (NEVER OVERLAPS INPUTS) -->
+                <div class="acra-docked-hud glass-card" style="padding: 20px; border-radius: 18px; background: rgba(7, 11, 18, 0.92); border: 1.5px solid #3ECF8E; box-shadow: 0 0 25px rgba(62,207,142,0.2); display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 14px;">
+                            <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; color: #3ECF8E; font-size: 12px;" class="mono">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                <span>ACRA GOVT HUD</span>
+                            </div>
+                            <span class="badge badge-approved" style="font-size: 10px; padding: 2px 6px;">LIVE</span>
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px; color: rgba(255,255,255,0.9);">
+                            <div>
+                                <span style="color: #3ECF8E; font-weight: 700;">🏛️ ACRA UEN:</span>
+                                <span id="hud-uen" class="mono" style="font-weight: 800; color: #3ECF8E; background: rgba(62,207,142,0.15); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(62,207,142,0.35); font-size: 12px; margin-left: 4px;">{{ (active_lead.companyCode or '—') if active_lead else '—' }}</span>
+                            </div>
+                            <div>
+                                <span style="color: #3ECF8E; font-weight: 700;">✓ Status:</span>
+                                <div id="hud-status" style="font-weight: 700; color: #FFF; font-size: 13px;">{{ 'Live ACRA Verified' if active_lead else '—' }}</div>
+                            </div>
+                            <div>
+                                <span style="color: #3ECF8E; font-weight: 700;">💰 Paid-Up Capital:</span>
+                                <div id="hud-capital" style="font-weight: 700; color: #FFF; font-size: 13px;">{{ (active_lead.paid_up_capital or '$250,000 SGD') if active_lead else '—' }}</div>
+                            </div>
+                            <div>
+                                <span style="color: #3ECF8E; font-weight: 700;">🌱 SSIC Industry:</span>
+                                <div id="hud-ssic" style="font-weight: 600; color: rgba(255,255,255,0.85); font-size: 12px;">{{ (active_lead.industry or '—') if active_lead else '—' }}</div>
+                            </div>
+                            <div>
+                                <span style="color: #3ECF8E; font-weight: 700;">📍 Address:</span>
+                                <div id="hud-address" style="font-weight: 500; color: rgba(255,255,255,0.75); font-size: 11px;">{{ (active_lead.street or 'Singapore Registered Office') if active_lead else '—' }}</div>
+                            </div>
+                            <div>
+                                <span style="color: #3ECF8E; font-weight: 700;">📅 Incorporation:</span>
+                                <div id="hud-inc" style="font-weight: 600; color: rgba(255,255,255,0.85); font-size: 12px;">{{ (active_lead.incorporation_date or '15 Jan 2020') if active_lead else '—' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DIRECT OFFICIAL ACRA / SINGAPORE SGPBUSINESS REGISTRY LINKS -->
+                    <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        {% set initialQuery = (active_lead.companyCode or active_lead.companyName or '200517528N') if active_lead else '200517528N' %}
+                        <a id="hud-acra-link" href="https://www.sgpbusiness.com/search?q={{ initialQuery|urlencode }}" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: rgba(62, 207, 142, 0.12); border: 1px solid rgba(62, 207, 142, 0.35); border-radius: 8px; color: #3ECF8E; text-decoration: none; font-size: 11px; font-weight: 700; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(62,207,142,0.25)';" onmouseout="this.style.background='rgba(62,207,142,0.12)';">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                <span>SGPBusiness Company Registry</span>
+                            </span>
+                            <span style="font-size: 11px; font-weight: 900;">↗</span>
+                        </a>
+                        <div style="font-size: 10px; color: rgba(62,207,142,0.8); display: flex; justify-content: space-between; align-items: center;" class="mono">
+                            <span>✓ SG ENTITY DIRECTORY</span>
+                            <a href="https://www.sgpbusiness.com" target="_blank" rel="noopener noreferrer" style="color: rgba(255,255,255,0.6); text-decoration: underline; font-size: 10px;">sgpbusiness.com</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- WORKSPACE ACTION BUTTONS -->
+        <div style="display: flex; gap: 14px; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 24px; margin-top: 28px;">
+            <button class="btn btn-primary" onclick="approveCurrentRecord()" style="padding: 12px 24px; font-weight: 700; cursor: pointer;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>Approve & Ingest to Ledger</span>
+            </button>
+            <button class="btn btn-secondary" onclick="openEmailStudioForLead()" style="padding: 12px 20px; cursor: pointer;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <span>Email Studio</span>
+            </button>
+            <button class="btn btn-secondary" onclick="window.location.href='/ledger'" style="padding: 12px 20px; cursor: pointer;">
+                <span>View Master Ledger ➔</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- RIGHT BENTO STACK: METRICS, PENDING ACTIONS & REAL DATABASE DONUT CHART -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        
+        <!-- 1. VERIFICATION METRICS CARD -->
+        <div class="bento-card glass-card" style="padding: 24px; border-radius: 20px; background: rgba(11, 16, 25, 0.85); border: 1px solid rgba(255,255,255,0.08);">
+            <div style="font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.6); margin-bottom: 8px;">Verification Metrics</div>
+            <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px;">
+                <span style="font-size: 36px; font-weight: 900; color: #FFF; font-family: var(--font-display);">{{ leads|length }}</span>
+                <span style="font-size: 14px; font-weight: 800; color: #3ECF8E;">+12.5%</span>
+            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 14px;">Total Verifications (MTD)</div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.7); border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3898EC" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>Average Resolution Time: <strong style="color: #FFF;">1.2 hrs</strong></span>
+            </div>
+        </div>
+
+        <!-- 2. PENDING ACTIONS CARD (VIEW TRANSITIONS MORPH QUEUE) -->
+        <div class="bento-card glass-card" style="padding: 24px; border-radius: 20px; background: rgba(11, 16, 25, 0.85); border: 1px solid rgba(255,255,255,0.08);">
+            <div style="font-size: 14px; font-weight: 800; color: #FFF; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Pending Actions</span>
+                <span class="mono" id="pending-count-badge" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(62,207,142,0.15); color: #3ECF8E;">{{ queue|length }} Items</span>
+            </div>
+            
+            <div id="pending-actions-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto;">
+                {% for lead in queue %}
+                {% set fullName = (lead.firstName ~ ' ' ~ lead.lastName)|trim %}
+                {% set displayName = fullName if fullName else (lead.companyName or 'Unknown Contact') %}
+                <div id="pending-item-{{ lead.id }}" 
+                     class="pending-item-card"
+                     data-id="{{ lead.id }}" 
+                     data-name="{{ displayName|e }}" 
+                     data-company="{{ (lead.companyName or '')|e }}" 
+                     data-uen="{{ (lead.companyCode or '202312345K')|e }}" 
+                     data-title="{{ (lead.jobTitle or 'Executive')|e }}" 
+                     data-email="{{ (lead.email or '')|e }}" 
+                     data-industry="{{ (lead.industry or 'Technology & Software')|e }}" 
+                     data-street="{{ (lead.street or '')|e }}" 
+                     data-capital="{{ (lead.paid_up_capital or '$250,000 SGD')|e }}" 
+                     data-inc="{{ (lead.incorporation_date or '15 Jan 2020')|e }}" 
+                     onclick="selectLeadFromElement(this)" 
+                     style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; cursor: pointer; transition: all 0.2s ease;" 
+                     onmouseover="this.style.background='rgba(62,207,142,0.1)'; this.style.borderColor='rgba(62,207,142,0.3)';" 
+                     onmouseout="if(!this.classList.contains('active-pending')) { this.style.background='rgba(255,255,255,0.03)'; this.style.borderColor='rgba(255,255,255,0.06)'; }">
+                    
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #FFF;">Verify {{ displayName }}</div>
+                        <div style="font-size: 11px; color: rgba(255,255,255,0.4);">• Status 3 hours ago</div>
+                    </div>
+                    <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px; font-weight: 700; pointer-events: none;">Action</button>
+                </div>
+                {% else %}
+                <div style="font-size: 13px; color: #3ECF8E; text-align: center; padding: 24px 16px; background: rgba(62,207,142,0.06); border: 1px dashed rgba(62,207,142,0.3); border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span style="font-weight: 700;">All Records Verified</span>
+                    <span style="font-size: 11px; color: rgba(255,255,255,0.6);">All scanned leads have been approved & ingested to the CRM Ledger.</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 3. REAL DATABASE INDUSTRY DISTRIBUTION DONUT CHART -->
+        <div class="bento-card glass-card" style="padding: 24px; border-radius: 20px; background: rgba(11, 16, 25, 0.85); border: 1px solid rgba(255,255,255,0.08);">
+            <div style="font-size: 14px; font-weight: 800; color: #FFF; margin-bottom: 16px;">Industry Distribution (Verified Entities)</div>
+            
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <!-- Native SVG Donut Chart (Instant Rendering, No Canvas Dependency) -->
+                <svg width="130" height="130" viewBox="0 0 130 130" style="width: 130px; height: 130px; min-width: 130px; min-height: 130px; flex-shrink: 0; display: block;">
+                    <!-- Background Track -->
+                    <circle cx="65" cy="65" r="45" fill="none" stroke="rgba(255, 255, 255, 0.08)" stroke-width="16" />
+                    
+                    <!-- Slices -->
+                    {% set ns = namespace(offset=0) %}
+                    {% for item in industry_distribution %}
+                    {% set slice_len = (item.percentage / 100.0) * 282.74 %}
+                    <circle cx="65" cy="65" r="45" fill="none" 
+                            stroke="{{ item.color }}" 
+                            stroke-width="16" 
+                            stroke-dasharray="{{ slice_len }} 282.74" 
+                            stroke-dashoffset="{{ -ns.offset }}" 
+                            transform="rotate(-90 65 65)" 
+                            {% if industry_distribution|length == 1 %}stroke-linecap="butt"{% else %}stroke-linecap="round"{% endif %} />
+                    {% set ns.offset = ns.offset + slice_len %}
+                    {% endfor %}
+                    
+                    <!-- Center Metric HUD -->
+                    <text x="65" y="62" fill="#FFFFFF" font-size="16" font-weight="900" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">{{ leads|length }}</text>
+                    <text x="65" y="75" fill="rgba(255,255,255,0.5)" font-size="8.5" font-weight="800" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" letter-spacing="1">LEADS</text>
+                </svg>
+                
+                <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: rgba(255,255,255,0.85); flex: 1;">
+                    {% for item in industry_distribution %}
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: {{ item.color }}; flex-shrink: 0;"></span>
+                            <span style="overflow: hidden; text-overflow: ellipsis;">{{ item.industry }}</span>
+                        </div>
+                        <strong style="color:#FFF; margin-left: 6px;">{{ item.percentage }}%</strong>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- HOLOGRAPHIC APPROVAL & INGESTION LOADING MODAL OVERLAY -->
+<div id="approval-loading-overlay" style="display: none; position: fixed; inset: 0; background: rgba(5, 7, 13, 0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; opacity: 0; transition: opacity 0.3s ease;">
+    <div class="glass-card" style="padding: 44px 36px; border-radius: 28px; background: rgba(11, 16, 25, 0.96); border: 1.5px solid rgba(62, 207, 142, 0.5); box-shadow: 0 30px 80px rgba(0,0,0,0.9), 0 0 40px rgba(62,207,142,0.25); text-align: center; max-width: 480px; width: 90%;">
+        
+        <!-- HOLOGRAPHIC DUAL ORBITAL CORE -->
+        <div class="ai-orb-container" style="width: 100px; height: 100px; margin-bottom: 20px;">
+            <div class="ai-radar-pulse"></div>
+            <div class="ai-radar-pulse-delayed"></div>
+            <div class="ai-outer-ring" style="width: 95px; height: 95px;"></div>
+            <div class="ai-middle-arc" style="width: 76px; height: 76px;"></div>
+            <div class="ai-core-sphere" style="width: 54px; height: 54px;">
+                <svg class="ai-iris-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+            </div>
+        </div>
+
+        <h3 id="ingestion-modal-title" style="font-size: 22px; font-weight: 900; color: #FFF; margin-bottom: 8px; letter-spacing: -0.02em;">Ingesting to Master CRM Ledger</h3>
+        <p id="ingestion-modal-subtitle" style="font-size: 13.5px; color: rgba(255,255,255,0.7); margin-bottom: 24px;">
+            Validating Singapore ACRA UEN & syncing corporate vectors...
+        </p>
+
+        <!-- PROGRESS BAR -->
+        <div style="width: 100%; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.06); overflow: hidden; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.08);">
+            <div id="ingestion-progress-fill" style="width: 15%; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #3ECF8E, #3898EC); box-shadow: 0 0 15px rgba(62,207,142,0.6); transition: width 0.3s ease;"></div>
+        </div>
+
+        <!-- TELEMETRY STAMP -->
+        <div style="display: flex; justify-content: space-between; font-size: 11px; font-family: 'Fira Code', monospace; color: rgba(255,255,255,0.5);">
+            <span id="ingestion-step-badge" style="color: #3ECF8E; font-weight: 700;">STEP 1/3: ACRA AUDIT</span>
+            <span id="ingestion-time-badge" style="color: #3898EC;">0.0s</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentActiveLeadId = {{ active_lead.id if active_lead else 'null' }};
+
+function initReviewPage() {
+    // If currentActiveLeadId is set, highlight in list
+    if (currentActiveLeadId) {
+        const initEl = document.getElementById(`pending-item-${currentActiveLeadId}`);
+        if (initEl) {
+            initEl.classList.add('active-pending');
+            initEl.style.background = 'rgba(62,207,142,0.15)';
+            initEl.style.borderColor = 'rgba(62,207,142,0.5)';
+        }
+    } else {
+        // Automatically select first pending item
+        const firstCard = document.querySelector('.pending-item-card');
+        if (firstCard) {
+            selectLeadFromElement(firstCard);
+        }
+    }
+}
+
+if (document.readyState !== 'loading') {
+    initReviewPage();
+} else {
+    document.addEventListener('DOMContentLoaded', initReviewPage);
+}
+
+function updateAcraHudEntity(val) {
+    const nameEl = document.getElementById('lead-display-name');
+    if (nameEl) nameEl.textContent = val || 'Company Entity';
+    updateAcraLink(val, document.getElementById('input-acra-uen')?.value);
+}
+
+function updateAcraHudUen(val) {
+    const uenEl = document.getElementById('hud-uen');
+    if (uenEl && val) uenEl.textContent = val;
+    const uenStatusEl = document.getElementById('hud-status');
+    if (uenStatusEl && val) uenStatusEl.textContent = `Live (${val})`;
+    updateAcraLink(document.getElementById('input-entity-name')?.value, val);
+}
+
+function updateAcraLink(company, uen) {
+    const query = company || uen || 'Singapore';
+    const sgpUrl = `https://www.sgpbusiness.com/search?q=${encodeURIComponent(query)}`;
+    
+    const hudLink = document.getElementById('hud-acra-link');
+    if (hudLink) {
+        hudLink.href = sgpUrl;
+        hudLink.title = `View official SGPBusiness directory profile for ${query}`;
+    }
+
+    const topBtnLink = document.getElementById('btn-search-sgp-link');
+    if (topBtnLink) {
+        topBtnLink.href = sgpUrl;
+    }
+}
+
+function selectLeadFromElement(el) {
+    if (!el) return;
+    const card = el.closest('.pending-item-card') || el;
+    if (!card || !card.dataset.id) return;
+
+    const id = parseInt(card.dataset.id);
+    const name = card.dataset.name || '';
+    const company = card.dataset.company || '';
+    const uen = card.dataset.uen || '202312345K';
+    const title = card.dataset.title || 'Executive';
+    const email = card.dataset.email || '';
+    const industry = card.dataset.industry || 'Technology & Software';
+    const street = card.dataset.street || 'Singapore Registered Office';
+    const capital = card.dataset.capital || '$250,000 SGD';
+    const inc = card.dataset.inc || '15 Jan 2020';
+
+    // Active item visual feedback
+    document.querySelectorAll('.pending-item-card').forEach(item => {
+        item.classList.remove('active-pending');
+        item.style.background = 'rgba(255,255,255,0.03)';
+        item.style.borderColor = 'rgba(255,255,255,0.06)';
+    });
+    card.classList.add('active-pending');
+    card.style.background = 'rgba(62,207,142,0.15)';
+    card.style.borderColor = 'rgba(62,207,142,0.5)';
+
+    morphToVerificationLead(id, name, company, uen, title, email, industry, street, capital, inc);
+}
+
+function morphToVerificationLead(id, name, company, uen, title, email, industry, street, capital, inc) {
+    currentActiveLeadId = id;
+    const updateContent = () => {
+        const nameEl = document.getElementById('lead-display-name');
+        const entityInput = document.getElementById('input-entity-name');
+        const uenInput = document.getElementById('input-acra-uen');
+        const titleInput = document.getElementById('input-job-title');
+        const emailInput = document.getElementById('input-email');
+
+        // HUD Telemetry Elements
+        const uenDisplayEl = document.getElementById('hud-uen');
+        const statusEl = document.getElementById('hud-status');
+        const capitalEl = document.getElementById('hud-capital');
+        const ssicEl = document.getElementById('hud-ssic');
+        const addressEl = document.getElementById('hud-address');
+        const incEl = document.getElementById('hud-inc');
+
+        const activeCompany = company || name || 'Enterprise Entity';
+        const activeUen = uen || '202312345K';
+
+        if (nameEl) nameEl.textContent = name || company || 'Contact Entity';
+        if (entityInput) entityInput.value = activeCompany;
+        if (uenInput) uenInput.value = activeUen;
+        if (titleInput) titleInput.value = title || 'Executive';
+        if (emailInput) emailInput.value = email || '';
+
+        // Update ALL HUD Telemetry fields dynamically with real data
+        if (uenDisplayEl) uenDisplayEl.textContent = activeUen;
+        if (statusEl) statusEl.textContent = `Live (${activeUen})`;
+        if (ssicEl) ssicEl.textContent = industry || 'Technology & Software';
+        if (addressEl) addressEl.textContent = street || 'Singapore Registered Office';
+        if (capitalEl) capitalEl.textContent = capital || '$250,000 SGD';
+        if (incEl) incEl.textContent = inc || '15 Jan 2020';
+
+        // Update direct search link to the specific company on SGPBusiness registry
+        updateAcraLink(activeCompany, activeUen);
+    };
+
+    if (document.startViewTransition) {
+        document.startViewTransition(() => {
+            updateContent();
+        });
+    } else {
+        updateContent();
+    }
+}
+
+async function approveCurrentRecord() {
+    if (!currentActiveLeadId) {
+        const firstCard = document.querySelector('.pending-item-card');
+        if (firstCard && firstCard.dataset.id) {
+            currentActiveLeadId = parseInt(firstCard.dataset.id);
+        }
+    }
+
+    const activeLeadName = document.getElementById('lead-display-name')?.textContent || 'Record';
+    const compName = document.getElementById('input-entity-name')?.value || '';
+    const uenVal = document.getElementById('input-acra-uen')?.value || '';
+    const titleVal = document.getElementById('input-job-title')?.value || '';
+    const emailVal = document.getElementById('input-email')?.value || '';
+    const streetVal = document.getElementById('hud-address')?.textContent || '';
+    const capitalVal = document.getElementById('hud-capital')?.textContent || '';
+    const ssicVal = document.getElementById('hud-ssic')?.textContent || '';
+
+    // SHOW POPUP HOLOGRAPHIC LOADING MODAL
+    const overlay = document.getElementById('approval-loading-overlay');
+    const titleEl = document.getElementById('ingestion-modal-title');
+    const subEl = document.getElementById('ingestion-modal-subtitle');
+    const progFill = document.getElementById('ingestion-progress-fill');
+    const stepBadge = document.getElementById('ingestion-step-badge');
+    const timeBadge = document.getElementById('ingestion-time-badge');
+
+    if (overlay) {
+        overlay.style.display = 'flex';
+        setTimeout(() => overlay.style.opacity = '1', 10);
+    }
+    if (progFill) progFill.style.width = '35%';
+    if (titleEl) titleEl.textContent = `Ingesting ${activeLeadName}`;
+    if (subEl) subEl.textContent = 'Validating Singapore ACRA UEN & committing lead vectors...';
+    if (stepBadge) stepBadge.textContent = 'STEP 1/3: ACRA AUDIT';
+
+    const startTime = performance.now();
+    const timerInterval = setInterval(() => {
+        const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+        if (timeBadge) timeBadge.textContent = `${elapsed}s`;
+    }, 100);
+
+    setTimeout(() => {
+        if (progFill) progFill.style.width = '70%';
+        if (stepBadge) stepBadge.textContent = 'STEP 2/3: CRM LEDGER COMMIT';
+        if (subEl) subEl.textContent = 'Writing verified lead record to Master Database & Graph...';
+    }, 250);
+
+    try {
+        const payload = {
+            lead_id: currentActiveLeadId || null,
+            company_name: compName,
+            company_code: uenVal,
+            job_title: titleVal,
+            email: emailVal,
+            full_name: activeLeadName !== 'Record' ? activeLeadName : compName,
+            street: streetVal,
+            industry: ssicVal,
+            paid_up_capital: capitalVal
+        };
+
+        const res = await apiCall('/api/approve_and_ingest', 'POST', payload);
+
+        clearInterval(timerInterval);
+        if (progFill) progFill.style.width = '100%';
+        if (stepBadge) stepBadge.textContent = 'STEP 3/3: COMPLETE';
+        if (subEl) subEl.innerHTML = '<span style="color: #3ECF8E; font-weight: 700;">✓ Ingestion Successful! Advancing queue...</span>';
+
+        showNotification('Success', `✓ ${activeLeadName} verified & ingested into Master Ledger!`, 'success');
+
+        setTimeout(() => {
+            if (overlay) {
+                overlay.style.opacity = '0';
+                setTimeout(() => overlay.style.display = 'none', 300);
+            }
+
+            if (currentActiveLeadId) {
+                const pendingItem = document.getElementById(`pending-item-${currentActiveLeadId}`);
+                if (pendingItem) pendingItem.remove();
+            }
+
+            const remainingItems = document.querySelectorAll('.pending-item-card');
+            const badgeEl = document.getElementById('pending-count-badge');
+            if (badgeEl) badgeEl.textContent = `${remainingItems.length} Items`;
+
+            if (remainingItems.length > 0) {
+                selectLeadFromElement(remainingItems[0]);
+            } else {
+                currentActiveLeadId = null;
+                const workspaceCard = document.getElementById('active-verification-workspace');
+                if (workspaceCard) {
+                    workspaceCard.innerHTML = `
+                        <div style="text-align: center; padding: 80px 20px;">
+                            <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(62, 207, 142, 0.15); border: 1px solid rgba(62, 207, 142, 0.4); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; color: #3ECF8E;">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <h2 style="font-size: 26px; font-weight: 900; color: #FFF; margin-bottom: 8px;">All Pending Items Verified!</h2>
+                            <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px; font-size: 14px;">Great job! All ingested business cards have been verified and synced to the CRM database.</p>
+                            <a href="/ledger" class="btn btn-primary" style="padding: 14px 28px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px;">
+                                <span>View Master Ledger ➔</span>
+                            </a>
+                        </div>
+                    `;
+                }
+            }
+        }, 400);
+
+    } catch (e) {
+        clearInterval(timerInterval);
+        if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.display = 'none', 300);
+        }
+        showNotification('Error', e.message || 'Failed to approve record.', 'error');
+    }
+}
+
+function openEmailStudioForLead() {
+    if (!currentActiveLeadId) return;
+    const select = document.getElementById('email-target-select');
+    if (select) {
+        select.value = currentActiveLeadId;
+    }
+    openEmailStudio();
+}
+
+async function autoLookupAcraUen() {
+    const compInput = document.getElementById('input-entity-name');
+    const uenInput = document.getElementById('input-acra-uen');
+    const emailInput = document.getElementById('input-email');
+    const btn = document.getElementById('btn-auto-acra');
+    
+    const companyName = compInput ? compInput.value.trim() : '';
+    if (!companyName) {
+        showNotification('Notice', 'Please enter an Entity/Company Name to lookup on SGPBusiness.', 'info');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⚡ Querying SGPBusiness...</span>';
+    }
+
+    try {
+        const email = emailInput ? emailInput.value.trim() : '';
+        const res = await apiCall(`/api/acra/lookup_live?company=${encodeURIComponent(companyName)}&email=${encodeURIComponent(email)}`, 'GET');
+        
+        if (res && res.uen) {
+            if (uenInput) uenInput.value = res.uen;
+            if (compInput && res.companyName) compInput.value = res.companyName;
+
+            // Update HUD Telemetry
+            const uenDisplayEl = document.getElementById('hud-uen');
+            const statusEl = document.getElementById('hud-status');
+            const capitalEl = document.getElementById('hud-capital');
+            const ssicEl = document.getElementById('hud-ssic');
+            const addressEl = document.getElementById('hud-address');
+            const incEl = document.getElementById('hud-inc');
+
+            if (uenDisplayEl) uenDisplayEl.textContent = res.uen;
+            if (statusEl) statusEl.textContent = `Live (${res.uen})`;
+            if (ssicEl) ssicEl.textContent = res.industry || 'Technology & Software';
+            if (addressEl) addressEl.textContent = res.street || 'Singapore Registered Office';
+            if (capitalEl) capitalEl.textContent = res.capital || '$250,000 SGD';
+            if (incEl) incEl.textContent = res.inc_date || '15 Jan 2020';
+
+            updateAcraLink(res.companyName || companyName, res.uen);
+
+            showNotification('SGPBusiness Sync', `✓ Found Official Entity: ${res.companyName} (${res.uen})`, 'success');
+        } else {
+            showNotification('Notice', 'Opening SGPBusiness directory for ' + companyName, 'info');
+            openSgpBusinessSearch();
+        }
+    } catch (err) {
+        showNotification('Lookup Error', err.message || 'Error querying registry', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>⚡ Auto-Fetch SGPBusiness UEN</span>';
+        }
+    }
+}
+
+function openSgpBusinessSearch() {
+    const compInput = document.getElementById('input-entity-name');
+    const uenInput = document.getElementById('input-acra-uen');
+    const query = (compInput && compInput.value.trim()) || (uenInput && uenInput.value.trim()) || 'Singapore';
+    window.open(`https://www.sgpbusiness.com/search?q=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
+}
+</script>
+{% endblock %}

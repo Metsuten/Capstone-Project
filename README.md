@@ -12,16 +12,10 @@ LeadFlow AI is an enterprise-grade contact intelligence and document processing 
 ## 📋 Table of Contents
 1. [System Prerequisites](#-system-prerequisites)
 2. [Project Directory Structure](#-project-directory-structure)
-3. [Step-by-Step Setup & Build Instructions](#-step-by-step-setup--build-instructions)
-   - [Step 1: Clone the Repository](#step-1-clone-the-repository)
-   - [Step 2: Create Isolated Virtual Environment (.venv)](#step-2-create-isolated-virtual-environment-venv)
-   - [Step 3: Install Required Dependencies](#step-3-install-required-dependencies)
-   - [Step 4: Environment & API Key Configuration](#step-4-environment--api-key-configuration)
-   - [Step 5: Run the Application](#step-5-run-the-application)
-4. [Live Feature Verification & Testing Guide](#-live-feature-verification--testing-guide)
-5. [Automated Codebase Audit & Unit Verification](#-automated-codebase-audit--unit-verification)
-6. [Standalone Technical Verification Script](#-standalone-technical-verification-script)
-7. [Troubleshooting & FAQ](#-troubleshooting--faq)
+3. [⚡ 1-Click Quick Start (Windows)](#-1-click-quick-start-windows)
+4. [⚙️ Environment & API Key Configuration (.env)](#️-environment--api-key-configuration-env)
+5. [🎯 Live Feature Verification & Testing Guide](#-live-feature-verification--testing-guide)
+6. [Troubleshooting & FAQ](#-troubleshooting--faq)
 
 ---
 
@@ -31,7 +25,6 @@ Before running the project, ensure your computer has:
 * **Operating System:** Windows 10 / 11 (or macOS / Linux)
 * **Python:** Version `3.10`, `3.11`, `3.12`, or `3.13` (Download from [python.org](https://www.python.org/downloads/))
   * *Note: During Python installation on Windows, ensure the box **"Add Python to PATH"** is checked.*
-* **Git:** (Download from [git-scm.com](https://git-scm.com/))
 * **Modern Web Browser:** Chrome, Edge, Brave, or Firefox.
 
 ---
@@ -58,87 +51,41 @@ Capstone-Project/
 
 ---
 
-## 🛠️ Step-by-Step Setup & Build Instructions
+## ⚡ 1-Click Quick Start (Windows)
 
-### Step 1: Clone the Repository
-Open Command Prompt (`cmd`), PowerShell, or Terminal and clone the repository:
-```bash
-git clone https://github.com/Metsuten/Capstone-Project.git
-cd Capstone-Project
+The included `run_website.bat` file automates everything (Python detection, isolated `.venv` creation, dependency installation, database initialization, and opening your browser).
+
+To run the platform:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 1. Double-click 'run_website.bat'                                       │
+│    └─ Automatically creates '.env' from template & builds (.venv)       │
+│                                                                         │
+│ 2. Open '.env' in Notepad & paste your free Google Gemini API Key       │
+│    └─ GEMINI_API_KEY=your_key_here (from https://aistudio.google.com/) │
+│                                                                         │
+│ 3. Double-click 'run_website.bat' again                                 │
+│    └─ Launches the server and opens your browser to http://localhost:5000│
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Step 2: Create Isolated Virtual Environment (`.venv`)
-> **Directory Isolation Policy:** To prevent any package version conflicts, path collisions, or permission issues with your system-level Python installation, all project packages are strictly installed inside a dedicated local `.venv` folder in this directory.
+## ⚙️ Environment & API Key Configuration (.env)
 
-Run the following command to create the `.venv` directory:
+When `run_website.bat` runs for the first time, it automatically creates your `.env` file from `.env.example`. Open `.env` in any text editor to configure your keys:
 
-**On Windows (Command Prompt or PowerShell):**
-```cmd
-python -m venv .venv
-```
-
-**Activate the virtual environment:**
-* **Command Prompt (CMD):**
-  ```cmd
-  .venv\Scripts\activate
-  ```
-* **PowerShell:**
-  ```powershell
-  .\.venv\Scripts\Activate.ps1
-  ```
-  *(If PowerShell gives a script execution policy error, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` and retry).*
-* **macOS / Linux:**
-  ```bash
-  source .venv/bin/activate
-  ```
-
-Once activated, your terminal prompt will display `(.venv)` at the beginning of the line.
-
----
-
-### Step 3: Install Required Dependencies
-
-With `(.venv)` activated, upgrade `pip` and install all required packages:
-```bash
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-#### Core Package Manifest:
-| Package | Version | Purpose |
-| :--- | :--- | :--- |
-| `Flask` | `>=2.0.0` | Web framework, routing, session handling & REST APIs |
-| `pandas` | `>=2.0.0` | Structured data manipulation & CSV ledger generation |
-| `Pillow` | `>=10.0.0` | Image processing, card cropping, and visual transforms |
-| `PyMuPDF` | `>=1.23.0` | High-fidelity PDF rendering & multi-page card extraction |
-| `google-genai` | `>=0.1.0` | Gemini Vision multimodal OCR & entity extraction |
-| `google-generativeai`| `>=0.8.0` | Google AI Generative Language API integration |
-| `requests` | `>=2.28.0` | HTTP client for ACRA & external registry inquiries |
-| `beautifulsoup4` | `>=4.12.0` | HTML parsing for live web verification sources |
-| `lxml` | `>=4.9.0` | Fast XML and HTML tree processing |
-| `googlesearch-python` | `>=1.2.3` | OSINT executive profile & LinkedIn URL search |
-
----
-
-### Step 4: Environment & API Key Configuration
-
-To use the live AI components (such as scanning physical business cards, ACRA sector classification, and AI email generation), configure your keys in `.env`:
-
-1. Copy `.env.example` to `.env` (or simply double-click `run_website.bat` to have `.env` generated automatically).
-2. Open `.env` in any text editor and configure your keys:
-
-#### 1. Google Gemini API Key (Required for live vision OCR & AI drafts):
-* **Step 1:** Visit [Google AI Studio](https://aistudio.google.com/) and sign in with any standard Google account.
+### 1. 🤖 Google Gemini API Key (Required for live AI card scanning & OCR)
+* **Step 1:** Visit [Google AI Studio](https://aistudio.google.com/) and sign in with any Google account.
 * **Step 2:** Click **"Get API key"** at the top-left, then click **"Create API key"**.
 * **Step 3:** Copy your key and paste it into `.env`:
   ```ini
   GEMINI_API_KEY=your_actual_gemini_api_key_here
   ```
-  *(Powers 100% full-quality vision OCR and intelligent gap inference on the free tier).*
+  *(Powers 100% full-quality vision OCR, Singapore ACRA sector classification, and AI email drafting).*
 
-#### 2. Gmail SMTP App Password (Optional - For real email dispatch):
+### 2. ✉️ Gmail SMTP App Password (Optional - For real email dispatch)
 * **Step 1:** Open your [Google Account Security Settings](https://myaccount.google.com/security) and ensure **2-Step Verification** is turned **ON**.
 * **Step 2:** Go to [Google App Passwords](https://myaccount.google.com/apppasswords), enter an app name (e.g. `LeadFlow`), and click **Create**.
 * **Step 3:** Copy the 16-character generated password and paste it into `.env`:
@@ -150,41 +97,21 @@ To use the live AI components (such as scanning physical business cards, ACRA se
   ```
   *(Note: If left blank, LeadFlow AI runs in **Simulation Mode**, allowing you to draft and preview emails on-screen without sending real emails).*
 
-#### 3. Hunter.io API Key (Optional - B2B Domain Email Deliverability):
+### 3. 🎯 Hunter.io API Key (Optional - B2B Domain Email Deliverability)
 * **Step 1:** Visit [Hunter.io](https://hunter.io/) and create a free account.
-* **Step 2:** During onboarding (or in your dashboard settings), when prompted, select **"Integrate via API"**.
-* **Step 3:** Navigate to [Hunter.io API Keys](https://hunter.io/api_keys), copy your key, and paste it into `.env`:
+* **Step 2:** During onboarding (or in dashboard settings), select **"Integrate via API"**.
+* **Step 3:** Go to [Hunter.io API Keys](https://hunter.io/api_keys), copy your key, and paste it into `.env`:
   ```ini
   HUNTER_API_KEY=your_hunter_api_key_here
   ```
 
-#### 4. SerpAPI Key (Optional - Google Search Cross-Checking):
+### 4. 🔍 SerpAPI Key (Optional - Google Search Cross-Checking)
 * **Step 1:** Visit [SerpAPI](https://serpapi.com/) and register for a free account.
 * **Step 2:** Verify your email, go to [SerpAPI Manage API Key](https://serpapi.com/manage-api-key), and copy your private key.
 * **Step 3:** Paste it into `.env`:
   ```ini
   SERPAPI_API_KEY=your_serpapi_key_here
   ```
-
----
-
-### Step 5: Run the Application
-
-You can launch LeadFlow AI using either of the following methods:
-
-#### Option A: Automated 1-Click Windows Launcher (Recommended)
-Simply double-click `run_website.bat` or run in terminal:
-```cmd
-run_website.bat
-```
-*This script automatically verifies system Python, sets up `.venv`, copies `.env` if missing, installs dependencies, and launches your browser to **`http://localhost:5000`**.*
-
-#### Option B: Manual Execution (Flask Web Server)
-With `(.venv)` activated:
-```bash
-python app.py
-```
-Once started, navigate to: 👉 **[http://localhost:5000](http://localhost:5000)**
 
 ---
 

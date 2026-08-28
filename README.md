@@ -213,6 +213,11 @@ python leadflow_poc/leadflow_explain.py
 #### Q3: `python is not recognized as an internal or external command`
 * **Solution:** Ensure Python 3.10+ is installed and that the option **"Add Python to PATH"** was selected during installation. You can also run using `py` launcher: `py -m venv .venv`.
 
+#### Q4: Why does a scanned contact sometimes not have a LinkedIn profile link?
+* **Real-World Privacy / No Public Profile:** Not all professionals maintain a publicly indexed personal LinkedIn vanity URL, or their profile visibility may be set to private / restricted from search engine indexing.
+* **Strict Anti-Hallucination Guardrails:** LeadFlow AI enforces strict verification (cross-checking the person's name AND business entity against live search results). The platform **never fabricates guessed URLs** (e.g. `linkedin.com/in/first-last`) to ensure you are never given a broken 404 error page.
+* **SerpAPI Key:** Make sure your `SERPAPI_API_KEY` is configured in `.env` to ensure high-accuracy live search indexing without search engine rate-limiting.
+
 ---
 
 ## 👥 Authors & Capstone Team

@@ -488,18 +488,18 @@ def api_scan():
             fut_verify = executor.submit(verify_sources.verify_lead, enriched_data.copy())
             
             try:
-                res_infer = fut_infer.result(timeout=4.0)
+                res_infer = fut_infer.result(timeout=10.0)
             except Exception:
                 res_infer = enriched_data
                 
             try:
-                res_verify = fut_verify.result(timeout=4.0)
+                res_verify = fut_verify.result(timeout=10.0)
             except Exception:
                 res_verify = {}
 
-        final_data = {**res_infer}
+        final_data = {**enriched_data, **res_infer}
         for k, v in res_verify.items():
-            if v and (not final_data.get(k) or k in ['companyCode', 'country', 'paid_up_capital', 'verification_sources', 'gov_verified_fields']):
+            if v and (not final_data.get(k) or k in ['companyCode', 'country', 'paid_up_capital', 'verification_sources', 'gov_verified_fields', 'linkedin', 'linkedin_source']):
                 final_data[k] = v
 
         ensure_genuine_acra_uen(final_data)

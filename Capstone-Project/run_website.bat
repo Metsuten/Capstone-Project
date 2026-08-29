@@ -10,17 +10,45 @@ echo.
 cd /d "%~dp0"
 
 REM ----------------------------------------------------------------------------
-REM 0. Verify that .env exists, or copy from .env.example
+REM 0. Verify that .env exists, or auto-generate .env and .env.example
 REM ----------------------------------------------------------------------------
-if not exist ".env" (
-    if exist ".env.example" (
-        copy ".env.example" ".env" >nul
-        echo [INFO] Created default .env from .env.example.
-        echo [NOTE] To enable live AI vision OCR, edit .env to add your Gemini API Key:
-        echo        GEMINI_API_KEY=your_actual_gemini_api_key_here
-        echo        (Get a free key from https://aistudio.google.com/)
+if not exist ".env.example" (
+    (
+        echo # ===========================================================================
+        echo # LeadFlow AI - Environment Configuration Template
+        echo # ===========================================================================
         echo.
-    )
+        echo # 1. Google Gemini API Key ^(Required for live AI card scanning ^& OCR^)
+        echo # Get a free key from: https://aistudio.google.com/
+        echo GEMINI_API_KEY=
+        echo.
+        echo # 2. Gmail SMTP Settings ^(Optional - For real email dispatch^)
+        echo SMTP_SERVER=smtp.gmail.com
+        echo SMTP_PORT=587
+        echo SMTP_USER=your_email@gmail.com
+        echo SMTP_PASSWORD=your_app_password
+        echo.
+        echo # 3. Hunter.io API Key ^(Optional - B2B Email Deliverability^)
+        echo # Get a free key from: https://hunter.io/
+        echo HUNTER_API_KEY=
+        echo.
+        echo # 4. SerpAPI Key ^(Optional - LinkedIn OSINT Search Verification^)
+        echo # Get a free key from: https://serpapi.com/
+        echo SERPAPI_API_KEY=
+        echo.
+        echo # 5. Flask Runtime Environment
+        echo FLASK_ENV=production
+    ) > ".env.example"
+    echo [INFO] Auto-generated .env.example template.
+)
+
+if not exist ".env" (
+    copy ".env.example" ".env" >nul
+    echo [INFO] Created .env configuration file.
+    echo [NOTE] Open .env in Notepad to add your Gemini API Key:
+    echo        GEMINI_API_KEY=your_actual_gemini_api_key_here
+    echo        ^(Get a free key from https://aistudio.google.com/^)
+    echo.
 )
 
 REM ----------------------------------------------------------------------------

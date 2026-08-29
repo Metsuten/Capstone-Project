@@ -9,6 +9,8 @@
 
 import os
 import sys
+import re
+import json
 from typing import Dict, Any, Optional
 
 # --- ENV LOADER ---
@@ -860,6 +862,12 @@ def infer_missing_fields_ai(lead: Dict[str, Any]) -> Dict[str, Any]:
     # 0. Web LinkedIn Discovery via Gemini AI
     if not updated.get("linkedin") or str(updated.get("linkedin")).strip() in ["—", "N/A", "", "None"]:
         gemini_api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        clean_fn = first_name or updated.get("firstName", "")
+        clean_ln = last_name or updated.get("lastName", "")
+        clean_comp = company or updated.get("companyName", "")
+        clean_title = job_title or updated.get("jobTitle", "")
+
+        li_found = None
         if gemini_api_key:
             try:
                 import google.genai as genai
@@ -867,27 +875,16 @@ def infer_missing_fields_ai(lead: Dict[str, Any]) -> Dict[str, Any]:
                 import json
 
                 client = genai.Client(api_key=gemini_api_key)
-                clean_fn = first_name or updated.get("firstName", "")
-                clean_ln = last_name or updated.get("lastName", "")
-                clean_comp = company or updated.get("companyName", "")
-                clean_title = job_title or updated.get("jobTitle", "")
-
-                c_suffix = "-sg" if (email_val.endswith(".sg") or phone_val.startswith("+65") or "singapore" in city_val.lower() or resolved_country == "Singapore") else ""
-                li_prompt = f"""You are a professional Open-Source Intelligence (OSINT) and business intelligence AI.
-Task: Find the exact, verified public LinkedIn profile handle for this specific person:
-
+                li_prompt = f"""You are a professional business OSINT intelligence engine.
+Determine the public LinkedIn profile URL for:
 Full Name: {clean_fn} {clean_ln}
-Current Company: {clean_comp}
+Company: {clean_comp}
 Job Title: {clean_title}
-Email / Domain: {email_val}
+Email: {email_val}
 
-STRICT SEARCH & MATCHING RULES:
-1. Search public business knowledge bases for "{clean_fn} {clean_ln}" at "{clean_comp}".
-2. Note country domain hints: if the email or phone indicates a specific region (e.g. Singapore), keep it in mind.
-3. Return ONLY a single valid JSON object: {{"linkedin": "https://www.linkedin.com/in/..."}} or {{"linkedin": ""}}
-4. CRITICAL: If you do not know or cannot verify the exact public LinkedIn profile handle with high certainty, return {{"linkedin": ""}}. DO NOT invent, guess, or synthesize canonical fallback handles.
-"""
-                for m_li in ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest']:
+Return a single JSON object: {{"linkedin": "https://www.linkedin.com/in/..."}}"""
+
+                for m_li in ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']:
                     try:
                         res_li = client.models.generate_content(
                             model=m_li,
@@ -896,14 +893,17 @@ STRICT SEARCH & MATCHING RULES:
                         )
                         if res_li and res_li.text:
                             li_dict = json.loads(res_li.text.strip())
-                            if li_dict.get("linkedin"):
-                                updated["linkedin"] = li_dict["linkedin"]
-                                updated["linkedin_source"] = "ai_enriched"
+                            if li_dict.get("linkedin") and "linkedin.com/in/" in li_dict["linkedin"]:
+                                li_found = li_dict["linkedin"]
                                 break
                     except Exception:
                         continue
             except Exception:
                 pass
+
+        if li_found:
+            updated["linkedin"] = li_found
+            updated["linkedin_source"] = "ai_enriched"
 
     # 1. State & Country Rule (Instant Heuristic)
     if not resolved_country:

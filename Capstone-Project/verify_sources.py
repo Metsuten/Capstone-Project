@@ -722,7 +722,7 @@ def _lookup_edgar(company_name: str) -> Optional[Dict[str, Any]]:
                 _EDGAR_SEARCH,
                 params={"q": query, "dateRange": "custom", "startdt": "2010-01-01"},
                 headers=_EDGAR_HEADERS,
-                timeout=8,
+                timeout=1.5,
             )
             if resp.status_code != 200:
                 continue
@@ -751,7 +751,7 @@ def _lookup_edgar(company_name: str) -> Optional[Dict[str, Any]]:
                 sub = requests.get(
                     _EDGAR_SUBMIT.format(cik=str(cik).zfill(10)),
                     headers=_EDGAR_HEADERS,
-                    timeout=6,
+                    timeout=1.5,
                 )
                 if sub.status_code == 200:
                     sub_data = sub.json()
@@ -869,7 +869,7 @@ def _lookup_opencorporates(company_name: str, country: str = "") -> Optional[Dic
             params["api_token"] = api_key
         if jurisdiction:
             params["jurisdiction_code"] = jurisdiction
-        resp = requests.get(f"{_OC_BASE}/companies/search", params=params, timeout=8)
+        resp = requests.get(f"{_OC_BASE}/companies/search", params=params, timeout=1.5)
         if resp.status_code not in (200, 201):
             return None
         companies = resp.json().get("results", {}).get("companies", [])
@@ -983,7 +983,7 @@ def _search_google(query: str) -> List[Dict[str, str]]:
             "Accept-Language": "en-US,en;q=0.9",
         }
         url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&num=10&hl=en"
-        resp = requests.get(url, headers=headers, timeout=8)
+        resp = requests.get(url, headers=headers, timeout=2.0)
         if resp.status_code != 200:
             return []
         return _parse_linkedin_from_html(resp.text)
@@ -1005,7 +1005,7 @@ def _search_duckduckgo(query: str) -> List[Dict[str, str]]:
             "https://html.duckduckgo.com/html/",
             params={"q": query},
             headers=headers,
-            timeout=8,
+            timeout=2.0,
         )
         if resp.status_code != 200:
             return []
@@ -1023,7 +1023,7 @@ def _search_serpapi(query: str) -> List[Dict[str, str]]:
         resp = requests.get(
             "https://serpapi.com/search",
             params={"engine": "google", "q": query, "api_key": api_key, "num": 10},
-            timeout=10,
+            timeout=6.0,
         )
         if resp.status_code != 200:
             return []
@@ -1043,9 +1043,9 @@ def _search_serpapi(query: str) -> List[Dict[str, str]]:
 
 def discover_linkedin(data: Dict[str, Any]) -> Optional[Dict[str, str]]:
     """
-    Find LinkedIn profile using ALL available card data combined.
-    Uses name + company + title together to avoid wrong-person matches.
-    Returns dict with 'url' and any extra data extracted from the snippet.
+    Find LinkedIn profile using SerpAPI / web search.
+    Step 1: Queries search engine for the person's name on LinkedIn.
+    Step 2: Cross-checks that the company/business matches the card.
     """
     # Skip if LinkedIn already on card (scanned source)
     existing = (data.get("linkedin") or "").strip()
@@ -1061,105 +1061,78 @@ def discover_linkedin(data: Dict[str, Any]) -> Optional[Dict[str, str]]:
     name = f"{first} {last}".strip()
     company = (data.get("companyName") or "").strip()
     clean_company = re.sub(r'\b(pte|ltd|inc|corp|co|corporation|limited|gmbh)\b.*$', '', company, flags=re.I).strip()
-    email = (data.get("email") or "").strip()
-    phone = (data.get("phone") or "").strip()
-
-    # Generate progressive queries
-    queries = []
-    if clean_company:
-        queries.append(f'site:linkedin.com/in/ "{name}" "{clean_company}"')
-        queries.append(f'site:linkedin.com/in/ {name} "{clean_company}"')
-        queries.append(f'{name} {clean_company}') # General search, matches directory pages!
-        queries.append(f'"{name}" "{clean_company}"')
-    else:
-        queries.append(f'site:linkedin.com/in/ "{name}"')
-        queries.append(f'site:linkedin.com/in/ {name}')
-        queries.append(f'{name}')
-
-    if email:
-        domain = email.split('@')[-1]
-        if domain not in ("gmail.com", "yahoo.com", "outlook.com", "hotmail.com"):
-            queries.append(f'"{name}" "{domain}"')
-        prefix = email.split('@')[0]
-        if len(prefix) > 3:
-            queries.append(f'"{name}" "{prefix}"')
-        queries.append(f'"{email}"')
-
-    if phone:
-        clean_phone = re.sub(r'[^0-9+]', '', phone)
-        if len(clean_phone) > 7:
-            queries.append(f'"{clean_phone}"')
-
+    
     first_clean = re.sub(r'[^a-z0-9]', '', first.lower())
     last_clean  = re.sub(r'[^a-z0-9]', '', last.lower())
 
+    queries = []
+    if clean_company:
+        queries.append(f'"{name}" "{clean_company}" linkedin')
+        queries.append(f'{name} {clean_company} site:linkedin.com/in/')
+    queries.append(f'"{name}" linkedin')
+    queries.append(f'site:linkedin.com/in/ "{name}"')
+
+    has_serpapi = bool(_env("SERPAPI_API_KEY"))
+    candidates = []
+
     for q in queries:
-        # 1. SerpAPI (most reliable, needs key)
-        results = _search_serpapi(q)
-
-        # 2. Google (free, best-effort)
-        if not results:
-            time.sleep(0.5)
-            results = _search_google(q)
-
-        # 3. DuckDuckGo (fallback)
-        if not results:
-            time.sleep(0.5)
-            results = _search_duckduckgo(q)
+        results = []
+        if has_serpapi:
+            results = _search_serpapi(q)
+        else:
+            results = _search_duckduckgo(q) or _search_google(q)
 
         if results:
             for r in results:
                 link = r.get("url", r.get("link", ""))
-                if not link:
-                    continue
-                
-                slug = ""
-                # A. Check if direct LinkedIn profile
-                if "linkedin.com/in/" in link:
-                    slug = link.split("/in/")[-1].lower().rstrip("/")
-                # B. Check if directory profile
-                elif any(domain in link for domain in ["contactout.com", "signalhire.com", "zoominfo.com", "theorg.com"]):
-                    parts = [p for p in link.split("/") if p]
-                    if parts:
-                        last_part = parts[-1].lower()
-                        if last_part.isdigit() and len(parts) > 1:
-                            slug = parts[-2].lower()
-                        else:
-                            slug = last_part
-                        # Clean directory suffix like -99957 or %27s-email
-                        slug = re.sub(r'-\d+$', '', slug)
-                        slug = slug.split("%27")[0]
-                        slug = slug.split("'")[0]
-                        slug = re.sub(r'[^a-z0-9\-]', '', slug)
-                
-                if not slug:
-                    continue
-                    
+                if "linkedin.com/" in link:
+                    candidates.append({
+                        "url": link,
+                        "title": r.get("title", ""),
+                        "snippet": r.get("snippet", "")
+                    })
+            if candidates:
+                break
+
+    personal_match = None
+    company_match = None
+
+    for c in candidates:
+        link = c["url"]
+        title_snippet = (c["title"] + " " + c["snippet"]).lower()
+
+        # Check personal profile match
+        if "linkedin.com/in/" in link:
+            m = re.search(r'linkedin\.com/in/([a-zA-Z0-9_\-]+)', link)
+            if m:
+                slug = m.group(1).lower()
+                clean_url = f"https://www.linkedin.com/in/{slug}"
                 slug_clean = re.sub(r'[^a-z0-9]', '', slug)
-                
-                # Verify slug matches name to prevent wrong person matches
-                name_matched = (first_clean and first_clean in slug_clean) or (last_clean and last_clean in slug_clean)
-                if not name_matched:
-                    continue
+                name_match = (first_clean and first_clean in slug_clean) or (last_clean and last_clean in slug_clean) or (first.lower() in title_snippet and last.lower() in title_snippet)
+                if name_match:
+                    comp_words = [w.lower() for w in re.split(r'[^a-zA-Z0-9]+', clean_company) if len(w) > 2]
+                    comp_match = clean_company.lower() in title_snippet or any(w in title_snippet for w in comp_words) if comp_words else True
+                    if comp_match:
+                        return {"url": clean_url, "snippet": c["snippet"]}
+                    elif not personal_match:
+                        personal_match = {"url": clean_url, "snippet": c["snippet"]}
 
-                # Verify company match if company is specified
-                if clean_company:
-                    text_to_check = (r.get("title", "") + " " + r.get("snippet", "")).lower()
-                    company_words = [w.lower() for w in re.split(r'[^a-zA-Z0-9]+', clean_company) if len(w) > 2]
-                    generic_terms = {"engineering", "technology", "technologies", "solutions", "services", "group", "holdings", "systems", "international", "corporation", "partner", "partners", "management"}
-                    unique_company_words = [w for w in company_words if w not in generic_terms]
-                    if not unique_company_words and company_words:
-                        unique_company_words = company_words
-                    
-                    company_matched = clean_company.lower() in text_to_check or (unique_company_words and any(w in text_to_check for w in unique_company_words))
-                    if not company_matched:
-                        continue
-                
-                # Construct final verified LinkedIn URL
-                verified_url = f"https://www.linkedin.com/in/{slug}"
-                return {"url": verified_url, "snippet": r.get("snippet", "")}
+        # Check company profile match as backup
+        elif "linkedin.com/company/" in link and clean_company:
+            m = re.search(r'linkedin\.com/company/([a-zA-Z0-9_\-]+)', link)
+            if m:
+                comp_slug = m.group(1).lower()
+                comp_words = [w.lower() for w in re.split(r'[^a-zA-Z0-9]+', clean_company) if len(w) > 2]
+                if clean_company.lower() in title_snippet or any(w in title_snippet for w in comp_words) or any(w in comp_slug for w in comp_words):
+                    if not company_match:
+                        company_match = {"url": f"https://www.linkedin.com/company/{comp_slug}", "snippet": c["snippet"]}
 
-    # If no name match in slug across all queries, return None to prevent wrong-person assignment
+    if personal_match:
+        return personal_match
+
+    if company_match:
+        return company_match
+
     return None
 
 
@@ -1390,12 +1363,8 @@ def verify_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
                 if snippet_data.get("country"):
                     _apply_if_missing(data, "country", snippet_data["country"], "scraped")
     else:
-        # Scraper failed to verify LinkedIn
-        existing_source = (data.get("linkedin_source") or "").strip()
-        if existing_source == "ai_enriched":
-            # Clear the unverified AI guess so we don't display a hallucination!
-            data["linkedin"] = ""
-            data["linkedin_source"] = ""
+        # Web search did not find a verified LinkedIn URL; leave empty so user is not given broken 404 links
+        pass
 
     # -----------------------------------------------------------------------
     # STEP 4 — Job title cross-check using Gemini

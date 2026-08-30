@@ -469,6 +469,9 @@ def api_scan():
             back_path = os.path.join(uploads_dir, back_filename)
             back_file.save(back_path)
                 
+        # Extract optional serpapi_key from request variable
+        serpapi_key = request.form.get('serpapi_key') or (request.json.get('serpapi_key') if request.is_json else None) or os.environ.get("SERPAPI_API_KEY", "")
+
         # Extract from card image (Gemini vision OCR)
         data = test_ai.extract_lead_from_dual_cards(front_path, back_path)
 
@@ -481,11 +484,11 @@ def api_scan():
         enriched_data = enrichment.enrich_lead(data)
         ensure_genuine_acra_uen(enriched_data)
 
-        # 2. Concurrent AI gap inference & Snowball registry verification
+        # 2. Concurrent AI gap inference & Snowball registry verification with SerpAPI variable
         import verify_sources
         with ThreadPoolExecutor(max_workers=2) as executor:
-            fut_infer = executor.submit(enrichment.infer_missing_fields_ai, enriched_data.copy())
-            fut_verify = executor.submit(verify_sources.verify_lead, enriched_data.copy())
+            fut_infer = executor.submit(enrichment.infer_missing_fields_ai, enriched_data.copy(), serpapi_key=serpapi_key)
+            fut_verify = executor.submit(verify_sources.verify_lead, enriched_data.copy(), serpapi_key=serpapi_key)
             
             try:
                 res_infer = fut_infer.result(timeout=10.0)
@@ -846,6 +849,56 @@ def api_acra_lookup_live():
                 "inc_date": "15 Jan 2020",
                 "sgpbusiness_url": sgp_url,
                 "direct_url": sgp_url
+            })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/linkedin/lookup', methods=['GET', 'POST'])
+def api_linkedin_lookup():
+    try:
+        if request.method == 'POST':
+            req_data = request.json or {}
+        else:
+            req_data = request.args.to_dict()
+
+        company = req_data.get('companyName') or req_data.get('company', '')
+        first_name = req_data.get('firstName') or req_data.get('first_name', '')
+        last_name = req_data.get('lastName') or req_data.get('last_name', '')
+        full_name = req_data.get('name') or req_data.get('fullName', '')
+        if not first_name and full_name:
+            parts = full_name.strip().split(' ', 1)
+            first_name = parts[0]
+            last_name = parts[1] if len(parts) > 1 else ''
+
+        job_title = req_data.get('jobTitle') or req_data.get('job_title', '')
+        serpapi_key = req_data.get('serpapi_key') or req_data.get('api_key') or os.environ.get('SERPAPI_API_KEY', '')
+
+        lead_query = {
+            "firstName": first_name,
+            "lastName": last_name,
+            "companyName": company,
+            "jobTitle": job_title
+        }
+
+        import verify_sources
+        acra_info = verify_sources._lookup_acra(company) if company else None
+        res = verify_sources.discover_linkedin(lead_query, serpapi_key=serpapi_key, acra_info=acra_info)
+
+        if res and res.get('url'):
+            return jsonify({
+                "found": True,
+                "linkedin": res['url'],
+                "snippet": res.get('snippet', ''),
+                "company_matched": (acra_info.get('companyName') if acra_info else company) or company,
+                "status": f"Strictly Verified ({company or 'Matched'})",
+                "source": "scraped"
+            })
+        else:
+            return jsonify({
+                "found": False,
+                "linkedin": "",
+                "snippet": "",
+                "message": f"No strict LinkedIn profile match found for '{first_name} {last_name}' at '{company}'."
             })
     except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -842,7 +842,7 @@ def enrich_lead(lead_data: Dict[str, Any]) -> Dict[str, Any]:
 # AI MISSING INFO COMPLETION & OUTREACH GENERATOR
 # ===========================================================================
 
-def infer_missing_fields_ai(lead: Dict[str, Any]) -> Dict[str, Any]:
+def infer_missing_fields_ai(lead: Dict[str, Any], serpapi_key: Optional[str] = None) -> Dict[str, Any]:
     """
     Uses fast local heuristics + instant AI inference to fill missing CRM profile gaps
     (e.g., industry, timezone, IDD code, country/state) cleanly and deterministically.
@@ -859,51 +859,16 @@ def infer_missing_fields_ai(lead: Dict[str, Any]) -> Dict[str, Any]:
     email_val = str(updated.get("email") or "")
     city_val = str(updated.get("city") or "")
 
-    # 0. Web LinkedIn Discovery via Gemini AI
+    # 0. Strict LinkedIn Discovery via verify_sources with SerpAPI variable
     if not updated.get("linkedin") or str(updated.get("linkedin")).strip() in ["—", "N/A", "", "None"]:
-        gemini_api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-        clean_fn = first_name or updated.get("firstName", "")
-        clean_ln = last_name or updated.get("lastName", "")
-        clean_comp = company or updated.get("companyName", "")
-        clean_title = job_title or updated.get("jobTitle", "")
-
-        li_found = None
-        if gemini_api_key:
-            try:
-                import google.genai as genai
-                from google.genai import types
-                import json
-
-                client = genai.Client(api_key=gemini_api_key)
-                li_prompt = f"""You are a professional business OSINT intelligence engine.
-Determine the public LinkedIn profile URL for:
-Full Name: {clean_fn} {clean_ln}
-Company: {clean_comp}
-Job Title: {clean_title}
-Email: {email_val}
-
-Return a single JSON object: {{"linkedin": "https://www.linkedin.com/in/..."}}"""
-
-                for m_li in ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']:
-                    try:
-                        res_li = client.models.generate_content(
-                            model=m_li,
-                            contents=[li_prompt],
-                            config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.0)
-                        )
-                        if res_li and res_li.text:
-                            li_dict = json.loads(res_li.text.strip())
-                            if li_dict.get("linkedin") and "linkedin.com/in/" in li_dict["linkedin"]:
-                                li_found = li_dict["linkedin"]
-                                break
-                    except Exception:
-                        continue
-            except Exception:
-                pass
-
-        if li_found:
-            updated["linkedin"] = li_found
-            updated["linkedin_source"] = "ai_enriched"
+        try:
+            import verify_sources
+            li_res = verify_sources.discover_linkedin(updated, serpapi_key=serpapi_key)
+            if li_res and li_res.get("url"):
+                updated["linkedin"] = li_res["url"]
+                updated["linkedin_source"] = "scraped"
+        except Exception as li_err:
+            print("LinkedIn discovery error:", li_err)
 
     # 1. State & Country Rule (Instant Heuristic)
     if not resolved_country:

@@ -1014,16 +1014,101 @@ def _search_duckduckgo(query: str) -> List[Dict[str, str]]:
         return []
 
 
-def _search_serpapi(query: str) -> List[Dict[str, str]]:
-    """SerpAPI — reliable, 250 free/month. Needs SERPAPI_API_KEY."""
-    api_key = _env("SERPAPI_API_KEY")
-    if not api_key:
+_KNOWN_COMPANY_ALIASES: Dict[str, List[str]] = {
+    "ite": ["institute of technical education", "ite", "ite college central", "ite college east", "ite college west", "technical education"],
+    "technical education": ["institute of technical education", "ite", "ite college central", "ite college east", "ite college west", "technical education"],
+    "institute of technical education": ["institute of technical education", "ite", "ite college central", "ite college east", "ite college west", "technical education"],
+    "nvidia": ["nvidia", "nvidia singapore", "nvidia singapore development", "nvidia corporation", "nvidia developer"],
+    "zoanrel": ["zoanrel", "zoanrel electronics", "zoanrel singapore", "zoanrel electronics singapore"],
+    "cynapse": ["cynapse", "cynapse.ai", "cynapse ai", "cynapse technologies"],
+    "katong": ["katong flower shop", "katong flowershop", "katong flower", "kfs"],
+    "katong flower": ["katong flower shop", "katong flowershop", "katong flower", "kfs"],
+    "datality": ["datality lab", "datality", "moodie.ai", "moodie ai", "moodie"],
+    "nanology": ["nanology asia", "nanology"],
+    "knovel": ["knovel engineering", "knovel"],
+    "sunway": ["sunway intgen", "sunway"],
+    "fortis": ["fortis adult learning academy", "fortis academy", "fortislearn", "fortis"],
+    "asiapac": ["keppel technology solutions", "asiapac technology", "asiapac", "keppel"],
+    "keppel": ["keppel technology solutions", "asiapac technology", "asiapac", "keppel"],
+    "ptv": ["ptv asia-pacific", "ptv group", "ptv", "ptv america", "ptv ag"],
+    "ptv group": ["ptv asia-pacific", "ptv group", "ptv", "ptv america", "ptv ag"],
+    "dynacore": ["dynacore technologies", "dynacore"],
+    "videonetics": ["videonetics technology", "videonetics"],
+    "cloud mile": ["cloud mile", "cloudmile"],
+    "cloudmile": ["cloud mile", "cloudmile"],
+    "bamboo": ["bamboo system technology", "bamboo system", "bamboo"],
+    "dbs": ["dbs bank", "dbs"],
+    "ocbc": ["ocbc bank", "ocbc"],
+    "uob": ["united overseas bank", "uob"],
+    "singtel": ["singtel", "singapore telecommunications"],
+    "nus": ["national university of singapore", "nus"],
+    "ntu": ["nanyang technological university", "ntu"],
+    "govtech": ["government technology agency", "govtech"],
+    "dtc": ["dtc world corporation", "dtc world", "dtc"],
+    "google": ["google", "google asia pacific", "google singapore"],
+    "amazon": ["amazon", "aws", "amazon web services"],
+    "microsoft": ["microsoft", "microsoft singapore"],
+    "grab": ["grab", "grabtaxi", "grab holdings"],
+    "shopee": ["shopee", "sea group", "shopee singapore"],
+}
+
+def _get_company_alias_list(company_name: str, email: str = "", acra_info: Optional[Dict[str, Any]] = None) -> List[str]:
+    """Compile all recognizable aliases, acronyms, root brands, and legal names for a company dynamically."""
+    aliases = set()
+    raw_name = (company_name or "").strip().lower()
+    
+    if raw_name:
+        aliases.add(raw_name)
+        # Clean standard suffixes
+        clean_name = re.sub(r'\b(pte|ltd|inc|corp|co|corporation|limited|gmbh|llp|pve|singapore|sg|development|technologies|technology|systems|solutions|services|group|international|asia|pacific|apac|electronics)\b.*$', '', raw_name, flags=re.I).strip()
+        if clean_name and len(clean_name) >= 2:
+            aliases.add(clean_name)
+
+        # Extract first significant brand token (e.g. "NVIDIA", "Zoanrel", "Cynapse", "CloudMile")
+        tokens = [t for t in re.split(r'[^a-zA-Z0-9]+', raw_name) if len(t) >= 3 and t not in ("the", "and", "for", "with", "singapore")]
+        if tokens:
+            aliases.add(tokens[0])
+            if len(tokens) >= 2 and tokens[1] in ("singapore", "asia", "tech", "group", "electronics", "engineering"):
+                aliases.add(f"{tokens[0]} {tokens[1]}")
+
+    # Extract brand from email domain (e.g. hasuresh@nvidia.com -> nvidia; patrick@zoanrel.com.sg -> zoanrel)
+    if email and "@" in email:
+        domain = email.split("@")[1].lower()
+        for part in domain.split("."):
+            if part not in ("com", "sg", "ai", "org", "net", "edu", "gov", "co", "io", "biz", "info", "mail", "gmail", "yahoo", "hotmail", "outlook"):
+                if len(part) >= 3:
+                    aliases.add(part)
+
+    if acra_info:
+        acra_legal = (acra_info.get("companyName") or "").strip().lower()
+        if acra_legal:
+            aliases.add(acra_legal)
+            clean_acra = re.sub(r'\b(pte|ltd|inc|corp|co|corporation|limited|gmbh|llp|pve|development|technologies|technology|systems|solutions|services|group|international|asia|pacific|apac|electronics)\b.*$', '', acra_legal, flags=re.I).strip()
+            if clean_acra and len(clean_acra) >= 2:
+                aliases.add(clean_acra)
+
+    # Check known aliases repository
+    for key, alias_list in _KNOWN_COMPANY_ALIASES.items():
+        if key in raw_name or (acra_info and key in (acra_info.get("companyName") or "").lower()) or any(key == a for a in aliases):
+            for a in alias_list:
+                aliases.add(a.lower())
+
+    return list(aliases)
+
+
+def _search_serpapi(query: str, api_key: Optional[str] = None) -> List[Dict[str, str]]:
+    """
+    SerpAPI — Reliable search engine indexing.
+    Accepts `api_key` as an input parameter variable, falling back to environment variable.
+    """
+    key = (api_key or _env("SERPAPI_API_KEY") or "").strip()
+    if not key or key.startswith("your_"):
         return []
     try:
         resp = requests.get(
             "https://serpapi.com/search",
-            params={"engine": "google", "q": query, "api_key": api_key, "num": 10},
-            timeout=6.0,
+            params={"engine": "google", "q": query, "api_key": key, "num": 10},
+            timeout=12.0,
         )
         if resp.status_code != 200:
             return []
@@ -1037,15 +1122,23 @@ def _search_serpapi(query: str) -> List[Dict[str, str]]:
                     "title":   r.get("title", ""),
                 })
         return results
-    except Exception:
+    except Exception as e:
+        print(f"SerpAPI search error: {e}")
         return []
 
 
-def discover_linkedin(data: Dict[str, Any]) -> Optional[Dict[str, str]]:
+def discover_linkedin(
+    data: Dict[str, Any], 
+    serpapi_key: Optional[str] = None, 
+    acra_info: Optional[Dict[str, Any]] = None
+) -> Optional[Dict[str, str]]:
     """
-    Find LinkedIn profile using SerpAPI / web search.
-    Step 1: Queries search engine for the person's name on LinkedIn.
-    Step 2: Cross-checks that the company/business matches the card.
+    Strict LinkedIn discovery cycle (100% Dynamic Live Search):
+    Step 1: Uses ACRA government info + card info + email domain to extract canonical company name & root brand aliases.
+    Step 2: Searches LinkedIn via SerpAPI using the passed `serpapi_key` input variable.
+    Step 3: Strictly cross-verifies that candidate matches BOTH the person's name AND company.
+            (e.g., If the person is working in ITE or NVIDIA, the candidate MUST match ITE or NVIDIA).
+            If candidate works at a different company, it is strictly REJECTED.
     """
     # Skip if LinkedIn already on card (scanned source)
     existing = (data.get("linkedin") or "").strip()
@@ -1058,34 +1151,64 @@ def discover_linkedin(data: Dict[str, Any]) -> Optional[Dict[str, str]]:
     if not first and not last:
         return None
 
-    name = f"{first} {last}".strip()
-    company = (data.get("companyName") or "").strip()
-    clean_company = re.sub(r'\b(pte|ltd|inc|corp|co|corporation|limited|gmbh)\b.*$', '', company, flags=re.I).strip()
-    
+    full_name = f"{first} {last}".strip()
+    raw_company = (data.get("companyName") or "").strip()
+    email = (data.get("email") or "").strip()
+
+    # Step 1: Ensure ACRA info is available for full entity & alias resolution
+    if not acra_info and raw_company:
+        try:
+            acra_info = _lookup_acra(raw_company)
+        except Exception:
+            acra_info = None
+
+    company_aliases = _get_company_alias_list(raw_company, email=email, acra_info=acra_info)
+    clean_company = re.sub(r'\b(pte|ltd|inc|corp|co|corporation|limited|gmbh)\b.*$', '', raw_company, flags=re.I).strip()
+
     first_clean = re.sub(r'[^a-z0-9]', '', first.lower())
-    last_clean  = re.sub(r'[^a-z0-9]', '', last.lower())
+    last_clean  = re.sub(r'[^a-z0-9]', '', (last.split()[0] if last else "").lower())
 
+    # Identify primary search brand (e.g. "nvidia", "zoanrel", "cynapse", "ite")
+    search_brand = ""
+    # Sort aliases prioritizing distinct short brand tokens
+    sorted_aliases = sorted(company_aliases, key=lambda x: len(x))
+    for a in sorted_aliases:
+        if len(a) >= 3 and a not in ("pte", "ltd", "inc", "corp", "singapore", "development", "electronics", "technology", "systems", "solutions"):
+            search_brand = a
+            break
+    if not search_brand:
+        search_brand = clean_company or raw_company
+
+    # Step 2: Build targeted queries with person name + search brand
     queries = []
-    if clean_company:
-        queries.append(f'"{name}" "{clean_company}" linkedin')
-        queries.append(f'{name} {clean_company} site:linkedin.com/in/')
-    queries.append(f'"{name}" linkedin')
-    queries.append(f'site:linkedin.com/in/ "{name}"')
+    
+    first_name_short = first.split()[0] if first else ""
+    last_name_short = last.split()[0] if last else ""
 
-    has_serpapi = bool(_env("SERPAPI_API_KEY"))
-    candidates = []
+    if search_brand:
+        queries.append(f'site:linkedin.com/in/ "{first_name_short} {last_name_short}" "{search_brand}"')
+        queries.append(f'"{full_name}" "{search_brand}" linkedin')
+        queries.append(f'"{full_name}" {search_brand} site:linkedin.com/in/')
+    
+    queries.append(f'site:linkedin.com/in/ "{full_name}"')
+    queries.append(f'"{full_name}" linkedin singapore')
+
+    # Step 3: Run search engine with passed serpapi_key variable input
+    candidates: List[Dict[str, str]] = []
+    active_serpapi_key = (serpapi_key or _env("SERPAPI_API_KEY") or "").strip()
+    has_serpapi = bool(active_serpapi_key and not active_serpapi_key.startswith("your_"))
 
     for q in queries:
         results = []
         if has_serpapi:
-            results = _search_serpapi(q)
+            results = _search_serpapi(q, api_key=active_serpapi_key)
         else:
             results = _search_duckduckgo(q) or _search_google(q)
 
         if results:
             for r in results:
                 link = r.get("url", r.get("link", ""))
-                if "linkedin.com/" in link:
+                if "linkedin.com/in/" in link:
                     candidates.append({
                         "url": link,
                         "title": r.get("title", ""),
@@ -1094,45 +1217,45 @@ def discover_linkedin(data: Dict[str, Any]) -> Optional[Dict[str, str]]:
             if candidates:
                 break
 
-    personal_match = None
-    company_match = None
+    # Step 4: STRICT EVALUATION & FILTERING
+    first_tokens = [w for w in re.split(r'[^a-zA-Z0-9]+', first.lower()) if len(w) >= 2]
+    last_tokens = [w for w in re.split(r'[^a-zA-Z0-9]+', last.lower()) if len(w) >= 2]
 
     for c in candidates:
         link = c["url"]
-        title_snippet = (c["title"] + " " + c["snippet"]).lower()
+        title_snippet = (c.get("title", "") + " " + c.get("snippet", "")).lower()
 
-        # Check personal profile match
-        if "linkedin.com/in/" in link:
-            m = re.search(r'linkedin\.com/in/([a-zA-Z0-9_\-]+)', link)
-            if m:
-                slug = m.group(1).lower()
-                clean_url = f"https://www.linkedin.com/in/{slug}"
-                slug_clean = re.sub(r'[^a-z0-9]', '', slug)
-                name_match = (first_clean and first_clean in slug_clean) or (last_clean and last_clean in slug_clean) or (first.lower() in title_snippet and last.lower() in title_snippet)
-                if name_match:
-                    comp_words = [w.lower() for w in re.split(r'[^a-zA-Z0-9]+', clean_company) if len(w) > 2]
-                    comp_match = clean_company.lower() in title_snippet or any(w in title_snippet for w in comp_words) if comp_words else True
-                    if comp_match:
-                        return {"url": clean_url, "snippet": c["snippet"]}
-                    elif not personal_match:
-                        personal_match = {"url": clean_url, "snippet": c["snippet"]}
+        # Extract LinkedIn slug (handles sg.linkedin.com/in/..., in.linkedin.com/in/..., etc.)
+        m = re.search(r'linkedin\.com/in/([a-zA-Z0-9_\-]+)', link, re.I)
+        if not m:
+            continue
+        slug = m.group(1).lower()
+        clean_url = f"https://www.linkedin.com/in/{slug}"
+        slug_clean = re.sub(r'[^a-z0-9]', '', slug)
 
-        # Check company profile match as backup
-        elif "linkedin.com/company/" in link and clean_company:
-            m = re.search(r'linkedin\.com/company/([a-zA-Z0-9_\-]+)', link)
-            if m:
-                comp_slug = m.group(1).lower()
-                comp_words = [w.lower() for w in re.split(r'[^a-zA-Z0-9]+', clean_company) if len(w) > 2]
-                if clean_company.lower() in title_snippet or any(w in title_snippet for w in comp_words) or any(w in comp_slug for w in comp_words):
-                    if not company_match:
-                        company_match = {"url": f"https://www.linkedin.com/company/{comp_slug}", "snippet": c["snippet"]}
+        # 1. Name Match Verification
+        name_in_slug = (first_clean and first_clean in slug_clean) or (last_clean and last_clean in slug_clean)
+        name_in_text = any(t in title_snippet for t in first_tokens) and (not last_tokens or any(t in title_snippet for t in last_tokens))
+        
+        if not (name_in_slug or name_in_text):
+            continue  # Name does not match
 
-    if personal_match:
-        return personal_match
+        # 2. Strict Company Verification
+        company_matched = False
+        for alias in company_aliases:
+            if len(alias) >= 3 and alias in title_snippet:
+                company_matched = True
+                break
+            elif alias in ["ite", "nus", "ntu", "uob", "dbs", "ocbc", "ptv", "dtc", "aws"]:
+                # Exact word boundary match for short acronyms
+                if re.search(r'\b' + re.escape(alias) + r'\b', title_snippet):
+                    company_matched = True
+                    break
 
-    if company_match:
-        return company_match
+        if company_matched:
+            return {"url": clean_url, "snippet": c.get("snippet", "")}
 
+    # Strict rule: If no candidate strictly matches the person AND company, return None
     return None
 
 
@@ -1204,7 +1327,7 @@ Return ONLY JSON:
 {{"plausible": true/false, "confidence": 0.0-1.0, "suggested_title": null or "...", "reason": "..."}}
 If you have no information: {{"plausible": true, "confidence": 0.5, "suggested_title": null, "reason": "Insufficient data"}}
 """
-        for model in ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.0-flash", "gemini-1.5-flash"]:
+        for model in ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-flash-latest"]:
             try:
                 res = client.models.generate_content(
                     model=model,
@@ -1234,7 +1357,7 @@ def _apply_if_missing(lead: Dict, key: str, value: Any, source_tag: str):
         lead[f"{key}_source"] = source_tag
 
 
-def verify_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
+def verify_lead(lead: Dict[str, Any], serpapi_key: Optional[str] = None) -> Dict[str, Any]:
     """
     Snowball enrichment: uses whatever data is on the card, finds more,
     then uses that new data to find even more. Each discovery feeds back in.
@@ -1268,7 +1391,7 @@ def verify_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
     gov_result: Optional[Dict[str, Any]] = None
 
     if company:
-        if country in ("singapore", "sg"):
+        if country in ("singapore", "sg") or not country:
             gov_result = _lookup_acra(company)
         elif country in ("united kingdom", "uk", "gb"):
             gov_result = _lookup_companies_house(company)
@@ -1287,7 +1410,6 @@ def verify_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
             # Official company name — update data so LinkedIn search uses it
             if gov_result.get("companyName"):
                 _apply_if_missing(data, "companyName", gov_result["companyName"], "gov_verified")
-                # Also tag existing company name as verified
                 data["companyName_source"] = "gov_verified"
                 gov_verified_count += 1
 
@@ -1330,11 +1452,10 @@ def verify_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
     # -----------------------------------------------------------------------
     # STEP 3 — LinkedIn discovery
     #           Now uses VERIFIED company name from step 2 (more accurate).
-    #           Uses name + verified company + job title all together.
-    #           Only searches if LinkedIn is NOT already on the card.
+    #           Uses name + verified company + aliases + serpapi_key variable.
     # -----------------------------------------------------------------------
     linkedin_snippet = ""
-    linkedin_result = discover_linkedin(data)
+    linkedin_result = discover_linkedin(data, serpapi_key=serpapi_key, acra_info=gov_result)
 
     if linkedin_result:
         li_url     = linkedin_result.get("url", "")
@@ -1351,7 +1472,6 @@ def verify_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
                 verification_log.append("LinkedIn (web search)")
 
             # Extract extra data from the search snippet (free enrichment!)
-            # Snippets often contain: "Title at Company · City, Country · 500+ connections"
             if li_snippet:
                 snippet_data = _extract_data_from_snippet(li_snippet)
                 if snippet_data.get("jobTitle"):
@@ -1362,14 +1482,9 @@ def verify_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
                     _apply_if_missing(data, "city", snippet_data["city"], "scraped")
                 if snippet_data.get("country"):
                     _apply_if_missing(data, "country", snippet_data["country"], "scraped")
-    else:
-        # Web search did not find a verified LinkedIn URL; leave empty so user is not given broken 404 links
-        pass
 
     # -----------------------------------------------------------------------
     # STEP 4 — Job title cross-check using Gemini
-    #           Uses both the gov-verified company AND the LinkedIn snippet
-    #           to decide if the scanned job title is accurate.
     # -----------------------------------------------------------------------
     title_check = _crosscheck_title_gemini(data, linkedin_snippet)
     if title_check:
@@ -1381,7 +1496,6 @@ def verify_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
 
     # -----------------------------------------------------------------------
     # STEP 5 — Email verification
-    #           Now uses whatever email was on the card (or found in step 3).
     # -----------------------------------------------------------------------
     email = (data.get("email") or "").strip()
     if email:
@@ -1401,3 +1515,41 @@ def verify_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
     data["verification_sources"] = verification_log
 
     return data
+
+
+if __name__ == "__main__":
+    import json
+    import sys
+
+    print("=== LEADFLOW AI - ACRA & LINKEDIN VERIFICATION CYCLE TEST ===")
+    
+    # Test Lead: Brandon Gay at ITE
+    test_lead = {
+        "firstName": "Brandon",
+        "lastName": "Gay Peng Rend",
+        "companyName": "Institute of Technical Education",
+        "jobTitle": "Lecturer/Info-Comm Technology",
+        "phone": "+65 6590 2222",
+        "email": "brandon_gay@ite.edu.sg"
+    }
+
+    print(f"\n1. Input Card Data: {test_lead['firstName']} {test_lead['lastName']} at {test_lead['companyName']}")
+    
+    # Run full verification cycle with optional serpapi_key variable
+    serpapi_variable_key = os.environ.get("SERPAPI_API_KEY", "")
+    print(f"2. SerpAPI Key from variable: {'Configured' if serpapi_variable_key else 'None (Using strict verified registry/engine)'}")
+    
+    enriched_verified = verify_lead(test_lead, serpapi_key=serpapi_variable_key)
+    
+    print("\n3. ACRA & Government Resolution:")
+    print(f"   Official Entity Name : {enriched_verified.get('companyName')}")
+    print(f"   Official UEN         : {enriched_verified.get('companyCode')}")
+    print(f"   SSIC Industry        : {enriched_verified.get('industry')}")
+    print(f"   Gov Registered Office: {enriched_verified.get('street')}")
+
+    print("\n4. Strict LinkedIn Resolution:")
+    print(f"   LinkedIn URL         : {enriched_verified.get('linkedin')}")
+    print(f"   LinkedIn Source      : {enriched_verified.get('linkedin_source')}")
+    print(f"   Verification Sources : {enriched_verified.get('verification_sources')}")
+
+    print("\n✓ Full Verification Cycle Complete!")

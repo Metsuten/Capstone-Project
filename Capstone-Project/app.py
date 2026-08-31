@@ -475,33 +475,31 @@ def api_scan():
         # Extract from card image (Gemini vision OCR)
         data = test_ai.extract_lead_from_dual_cards(front_path, back_path)
 
-        # Full enrichment pipeline (High-Performance Parallel Execution)
+        # Full enrichment pipeline
         import time as _time
-        from concurrent.futures import ThreadPoolExecutor
         t_enrich = _time.time()
         
         # 1. Fast local deterministic enrichment (<5ms)
         enriched_data = enrichment.enrich_lead(data)
         ensure_genuine_acra_uen(enriched_data)
 
-        # 2. Concurrent AI gap inference & Snowball registry verification with SerpAPI variable
+        # 2. Live ACRA + Dynamic SerpAPI LinkedIn Verification
         import verify_sources
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            fut_infer = executor.submit(enrichment.infer_missing_fields_ai, enriched_data.copy(), serpapi_key=serpapi_key)
-            fut_verify = executor.submit(verify_sources.verify_lead, enriched_data.copy(), serpapi_key=serpapi_key)
-            
-            try:
-                res_infer = fut_infer.result(timeout=10.0)
-            except Exception:
-                res_infer = enriched_data
-                
-            try:
-                res_verify = fut_verify.result(timeout=10.0)
-            except Exception:
-                res_verify = {}
+        try:
+            verified_data = verify_sources.verify_lead(enriched_data.copy(), serpapi_key=serpapi_key)
+        except Exception as v_err:
+            print("Verification warning:", v_err)
+            verified_data = {}
 
-        final_data = {**enriched_data, **res_infer}
-        for k, v in res_verify.items():
+        # 3. AI gap inference for missing fields (industry, geo, timezone)
+        merged_for_infer = {**enriched_data, **verified_data}
+        try:
+            res_infer = enrichment.infer_missing_fields_ai(merged_for_infer, serpapi_key=serpapi_key)
+        except Exception:
+            res_infer = {}
+
+        final_data = {**enriched_data, **res_infer, **verified_data}
+        for k, v in verified_data.items():
             if v and (not final_data.get(k) or k in ['companyCode', 'country', 'paid_up_capital', 'verification_sources', 'gov_verified_fields', 'linkedin', 'linkedin_source']):
                 final_data[k] = v
 

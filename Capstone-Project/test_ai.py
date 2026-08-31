@@ -57,7 +57,7 @@ RULE 4: "zipCode" = digits only (e.g. "139951"). Never put letters or words here
 RULE 5: "street" = building/street only. "city" = city only. "country" = country only. Keep them SEPARATE.
 RULE 6: "confidence_score" = 0.9 if name+email+phone all found, 0.7 if one is missing, 0.5 if many missing.
 RULE 7: For Asian bilingual cards with Chinese/Japanese/Korean characters, the LATIN text is the primary contact info. Use the Latin name.
-RULE 8: Social handles starting with "linkedin.com" go in "linkedin". Starting with "@" without a platform clue goes in "twitter".
+RULE 8: Look closely at ALL text and icons on BOTH front and back card images. If any LinkedIn URL, handle, or icon is printed (e.g. "linkedin.com/in/...", "in/...", "linkedin: [handle]", or a handle next to the LinkedIn 'in' logo), extract the complete URL ("https://www.linkedin.com/in/[handle]") into "linkedin". Starting with "@" without a platform clue goes in "twitter".
 RULE 9: "jobTitle" = the PERSON's role or position (e.g. "IT Manager", "Director", "CEO"). NEVER put the company name in "jobTitle". Company name goes in "companyName" ONLY.
 RULE 10: Do NOT guess or invent values. If you cannot clearly read a phone number or email, leave it as "". Accuracy is more important than completeness.
 RULE 11: CRITICAL - DO NOT HALLUCINATE OR INVENT NAMES. Do not output 'Mohamed Elhoushy' or any random names not strictly printed on the card.
@@ -92,13 +92,10 @@ Output ONLY a valid JSON object matching the JSON schema below:
                 pass
 
         model_candidates = [
-            'gemini-3.6-flash',
-            'gemini-3.5-flash',
-            'gemini-2.5-flash',
-            'gemini-2.5-pro',
-            'gemini-2.0-flash',
-            'gemini-1.5-flash',
-            'gemini-flash-latest'
+            'models/gemini-3.5-flash',
+            'models/gemini-3.5-flash-lite',
+            'models/gemini-flash-lite-latest',
+            'models/gemini-3.6-flash'
         ]
         res = None
         last_err = None

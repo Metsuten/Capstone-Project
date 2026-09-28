@@ -66,7 +66,7 @@ To run the platform:
 │    └─ GEMINI_API_KEY=your_key_here (from https://aistudio.google.com/) │
 │                                                                         │
 │ 3. Double-click 'run_website.bat' again                                 │
-│    └─ Launches the server and opens your browser to http://localhost:5000│
+│    └─ Launches the server and opens your browser to http://localhost:5261│
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 

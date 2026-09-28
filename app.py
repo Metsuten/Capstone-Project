@@ -1,5 +1,6 @@
 import os
 import io
+import socket
 import csv
 import json
 import tempfile
@@ -1414,9 +1415,30 @@ def api_load_preset():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return '127.0.0.1'
+
 def open_browser():
-    webbrowser.open_new('http://localhost:5000')
+    port = int(os.environ.get('PORT', 5261))
+    webbrowser.open_new(f'http://localhost:{port}')
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5261))
+    host = os.environ.get('HOST', '0.0.0.0')
+    local_ip = get_local_ip()
+    print(f"\n==================================================")
+    print(f"  LeadFlow AI Server Active")
+    print(f"  - Local URL:   http://localhost:{port}")
+    print(f"  - Network URL: http://{local_ip}:{port}")
+    print(f"==================================================\n")
     threading.Timer(1.25, open_browser).start()
-    app.run(port=5000, debug=False)
+    app.run(host=host, port=port, debug=False)
+
+
